@@ -1,0 +1,2034 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario de Biología Molecular</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        header {
+            background: linear-gradient(90deg, #00695c, #4db6ac);
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            animation: fadeIn 1s ease-in;
+        }
+        nav {
+            background-color: #00796b;
+            padding: 1rem;
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+        .nav-btn {
+            background-color: #004d40;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+            font-size: 1rem;
+        }
+        .nav-btn:hover {
+            background-color: #00695c;
+        }
+        .nav-btn.active {
+            background-color: #26a69a;
+        }
+        #start-menu, #quiz, #history {
+            display: none;
+            padding: 2rem;
+            flex-grow: 1;
+        }
+        #start-menu.active, #quiz.active, #history.active {
+            display: block;
+        }
+        #start-menu {
+            max-width: 800px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        #start-menu button {
+            background-color: #0288d1;
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+        #start-menu button:hover {
+            background-color: #01579b;
+        }
+        #quiz {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        #score {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: #004d40;
+        }
+        #question {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: #1a3c34;
+        }
+        #options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .option {
+            background-color: #e0f7fa;
+            border: 1px solid #00695c;
+            padding: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 1rem;
+        }
+        .option:hover {
+            background-color: #b2ebf2;
+        }
+        .option:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        #feedback {
+            margin-top: 1rem;
+            font-size: 1rem;
+            padding: 1rem;
+            border-radius: 5px;
+        }
+        #feedback.correct {
+            background-color: #c8e6c9;
+            color: #1b5e20;
+        }
+        #feedback.incorrect {
+            background-color: #ffcdd2;
+            color: #b71c1c;
+        }
+        #next-btn, #restart-btn, #reset-quiz-btn, #reset-history-btn {
+            margin-top: 1rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        #next-btn, #restart-btn {
+            background-color: #0288d1;
+            color: white;
+        }
+        #next-btn:hover, #restart-btn:hover {
+            background-color: #01579b;
+        }
+        #reset-quiz-btn, #reset-history-btn {
+            background-color: #d32f2f;
+            color: white;
+        }
+        #reset-quiz-btn:hover, #reset-history-btn:hover {
+            background-color: #b71c1c;
+        }
+        #history {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        #history table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        #history th, #history td {
+            padding: 0.75rem;
+            border: 1px solid #b0bec5;
+            text-align: left;
+        }
+        #history th {
+            background-color: #00796b;
+            color: white;
+        }
+        #study-tips {
+            background-color: #e0f7fa;
+            padding: 1rem;
+            border-radius: 5px;
+            border: 1px solid #00695c;
+            margin-top: 1rem;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @media (max-width: 600px) {
+            #start-menu {
+                grid-template-columns: 1fr;
+            }
+            header h1 {
+                font-size: 1.8rem;
+            }
+            #question {
+                font-size: 1.2rem;
+            }
+            .option {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Cuestionario de Biología Molecular</h1>
+    </header>
+    <nav>
+        <button class="nav-btn active" onclick="showTab('start-menu')">Inicio</button>
+        <button class="nav-btn" onclick="showTab('quiz')">Cuestionario</button>
+        <button class="nav-btn" onclick="showTab('history')">Historial</button>
+    </nav>
+    <div id="start-menu" class="active">
+        <button onclick="startQuiz('tema1')">Tema 1: Introducción a la Biología Molecular</button>
+        <button onclick="startQuiz('tema2')">Tema 2: Estructura y Función del ADN</button>
+        <button onclick="startQuiz('tema3')">Tema 3: Replicación del ADN</button>
+        <button onclick="startQuiz('tema4')">Tema 4: Transcripción</button>
+        <button onclick="startQuiz('tema5')">Tema 5: Traducción</button>
+        <button onclick="startQuiz('tema6')">Tema 6: Código Genético</button>
+        <button onclick="startQuiz('tema7')">Tema 7: Regulación de la Expresión Génica</button>
+        <button onclick="startQuiz('tema8')">Tema 8: Mutaciones</button>
+        <button onclick="startQuiz('tema9')">Tema 9: Regulación Génica</button>
+        <button onclick="startQuiz('tema10')">Tema 10: Técnicas de Biología Molecular</button>
+        <button onclick="startQuiz('tema11')">Tema 11: Clonación e Ingeniería Genética</button>
+        <button onclick="startQuiz('tema12')">Tema 12: Vectores y Transformación</button>
+        <button onclick="startSimulacroQuiz()">Simulacro Examen</button>
+    </div>
+    <div id="quiz">
+        <div id="score">Puntuación: 0 / 0</div>
+        <div id="question"></div>
+        <div id="options"></div>
+        <div id="feedback"></div>
+        <div id="study-tips" style="display: none;"></div>
+        <button id="next-btn" style="display: none;">Siguiente Pregunta</button>
+        <button id="restart-btn" style="display: none;">Jugar de Nuevo</button>
+        <button id="reset-quiz-btn" style="display: none;">Resetear Datos del Cuestionario</button>
+    </div>
+    <div id="history">
+        <h2>Historial de Partidas</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Tema</th>
+                    <th>Puntuación</th>
+                    <th>Total Preguntas</th>
+                    <th>Porcentaje</th>
+                </tr>
+            </thead>
+            <tbody id="game-history-body"></tbody>
+        </table>
+        <h2>Rendimiento por Pregunta</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Pregunta</th>
+                    <th>Correctas</th>
+                    <th>Incorrectas</th>
+                    <th>Porcentaje de Aciertos</th>
+                </tr>
+            </thead>
+            <tbody id="question-performance-body"></tbody>
+        </table>
+        <button id="reset-history-btn">Resetear Historial</button>
+    </div>
+    <script>
+        const questionsByTopic = {
+            tema1: [
+                {
+                    id: 'tema1-0',
+                    question: "¿Qué es la biología molecular?",
+                    options: [
+                        "El estudio de los organismos vivos a nivel macroscópico",
+                        "El estudio de los procesos moleculares en las células",
+                        "El análisis de poblaciones animales",
+                        "La investigación de fósiles"
+                    ],
+                    correct: 1,
+                    explanation: "La biología molecular estudia los procesos celulares a nivel molecular, como la replicación, transcripción y traducción. Las otras opciones corresponden a ecología, paleontología o biología general."
+                },
+                {
+                    id: 'tema1-1',
+                    question: "¿Cuál es el dogma central de la biología molecular?",
+                    options: [
+                        "ADN → Proteína → ARN",
+                        "ADN → ARN → Proteína",
+                        "ARN → ADN → Proteína",
+                        "Proteína → ARN → ADN"
+                    ],
+                    correct: 1,
+                    explanation: "El dogma central describe el flujo de información genética: el ADN se transcribe a ARN, y el ARN se traduce a proteínas. Las otras opciones no reflejan el orden correcto."
+                },
+                {
+                    id: 'tema1-2',
+                    question: "¿Qué molécula actúa como intermediaria entre el ADN y las proteínas?",
+                    options: [
+                        "ARN",
+                        "Glucosa",
+                        "Lípidos",
+                        "Enzimas"
+                    ],
+                    correct: 0,
+                    explanation: "El ARN (específicamente el ARNm) actúa como intermediario al llevar la información genética del ADN para sintetizar proteínas en la traducción. Las otras opciones no cumplen esta función."
+                },
+                {
+                    id: 'tema1-3',
+                    question: "¿Qué científico(s) propuso(ieron) el modelo de la doble hélice del ADN?",
+                    options: [
+                        "Mendel",
+                        "Watson y Crick",
+                        "Darwin",
+                        "Lamarck"
+                    ],
+                    correct: 1,
+                    explanation: "Watson y Crick propusieron el modelo de la doble hélice del ADN en 1953, basado en datos de Rosalind Franklin. Los otros científicos trabajaron en genética, evolución o herencia, pero no en la estructura del ADN."
+                },
+                {
+                    id: 'tema1-4',
+                    question: "¿Qué es un gen?",
+                    options: [
+                        "Una proteína funcional",
+                        "Un segmento de ADN que codifica un producto funcional",
+                        "Una molécula de ARN",
+                        "Una enzima de replicación"
+                    ],
+                    correct: 1,
+                    explanation: "Un gen es un segmento de ADN que contiene la información para producir un producto funcional, como una proteína o ARN. Las otras opciones son incorrectas: los genes no son proteínas, ARN ni enzimas."
+                },
+                {
+                    id: 'tema1-5',
+                    question: "¿Qué función cumple la enzima ADN polimerasa?",
+                    options: [
+                        "Sintetiza ARN",
+                        "Corta el ADN",
+                        "Sintetiza ADN",
+                        "Une proteínas"
+                    ],
+                    correct: 2,
+                    explanation: "La ADN polimerasa sintetiza nuevas hebras de ADN durante la replicación, añadiendo nucleótidos complementarios. Las otras opciones son incorrectas: el ARN es sintetizado por ARN polimerasa, el ADN se corta con enzimas de restricción, y las proteínas no son unidas por esta enzima."
+                },
+                {
+                    id: 'tema1-6',
+                    question: "¿Qué es un nucleótido?",
+                    options: [
+                        "Una unidad de azúcar",
+                        "Una unidad de ADN o ARN compuesta por base, azúcar y fosfato",
+                        "Una proteína estructural",
+                        "Un lípido de membrana"
+                    ],
+                    correct: 1,
+                    explanation: "Un nucleótido es la unidad básica del ADN o ARN, formada por una base nitrogenada, un azúcar (desoxirribosa o ribosa) y un grupo fosfato. Las otras opciones no describen un nucleótido."
+                },
+                {
+                    id: 'tema1-7',
+                    question: "¿Qué molécula es la principal portadora de información genética?",
+                    options: [
+                        "ARN",
+                        "ADN",
+                        "Proteínas",
+                        "Lípidos"
+                    ],
+                    correct: 1,
+                    explanation: "El ADN es la principal molécula que almacena y transmite la información genética en la mayoría de los organismos. El ARN actúa como intermediario, y las proteínas y lípidos tienen otras funciones."
+                },
+                {
+                    id: 'tema1-8',
+                    question: "¿Qué son las bases nitrogenadas del ADN?",
+                    options: [
+                        "Adenina, Guanina, Citosina, Uracilo",
+                        "Adenina, Guanina, Citosina, Timina",
+                        "Adenina, Timina, Uracilo, Citosina",
+                        "Guanina, Uracilo, Citosina, Timina"
+                    ],
+                    correct: 1,
+                    explanation: "Las bases nitrogenadas del ADN son Adenina (A), Guanina (G), Citosina (C) y Timina (T). El Uracilo (U) está presente en el ARN, no en el ADN."
+                },
+                {
+                    id: 'tema1-9',
+                    question: "¿Qué tipo de enlace une las bases nitrogenadas en la doble hélice?",
+                    options: [
+                        "Enlaces covalentes",
+                        "Enlaces iónicos",
+                        "Enlaces de hidrógeno",
+                        "Enlaces peptídicos"
+                    ],
+                    correct: 2,
+                    explanation: "Las bases nitrogenadas en la doble hélice del ADN están unidas por enlaces de hidrógeno (A con T, G con C). Los enlaces covalentes unen los nucleótidos en la cadena, los iónicos no son relevantes aquí, y los peptídicos son para proteínas."
+                }
+            ],
+            tema2: [
+                {
+                    id: 'tema2-0',
+                    question: "¿Cuál es la estructura del ADN?",
+                    options: [
+                        "Una hélice simple",
+                        "Una doble hélice antiparalela",
+                        "Una cadena de aminoácidos",
+                        "Un anillo circular"
+                    ],
+                    correct: 1,
+                    explanation: "El ADN tiene una estructura de doble hélice antiparalela, con dos hebras complementarias unidas por enlaces de hidrógeno. Las otras opciones son incorrectas: la hélice simple es para ARN, las cadenas de aminoácidos son proteínas, y el ADN circular existe en algunos casos, pero no es la estructura principal."
+                },
+                {
+                    id: 'tema2-1',
+                    question: "¿Qué une los nucleótidos en una hebra de ADN?",
+                    options: [
+                        "Enlaces de hidrógeno",
+                        "Enlaces fosfodiéster",
+                        "Enlaces iónicos",
+                        "Enlaces peptídicos"
+                    ],
+                    correct: 1,
+                    explanation: "Los nucleótidos en una hebra de ADN están unidos por enlaces fosfodiéster entre el grupo fosfato de un nucleótido y el azúcar del siguiente. Los enlaces de hidrógeno unen hebras complementarias, los iónicos no son relevantes, y los peptídicos son para proteínas."
+                },
+                {
+                    id: 'tema2-2',
+                    question: "¿Qué bases nitrogenadas son purinas?",
+                    options: [
+                        "Adenina y Citosina",
+                        "Adenina y Guanina",
+                        "Timina y Citosina",
+                        "Timina y Guanina"
+                    ],
+                    correct: 1,
+                    explanation: "Las purinas son bases nitrogenadas de dos anillos: Adenina (A) y Guanina (G). Las pirimidinas (un anillo) son Citosina (C) y Timina (T). Las otras combinaciones son incorrectas."
+                },
+                {
+                    id: 'tema2-3',
+                    question: "¿Qué bases se emparejan en el ADN?",
+                    options: [
+                        "A con G, C con T",
+                        "A con T, C con G",
+                        "A con C, G con T",
+                        "A con A, T con T"
+                    ],
+                    correct: 1,
+                    explanation: "En el ADN, la Adenina (A) se empareja con la Timina (T) mediante dos enlaces de hidrógeno, y la Citosina (C) con la Guanina (G) mediante tres enlaces de hidrógeno. Las otras opciones no respetan la complementariedad."
+                },
+                {
+                    id: 'tema2-4',
+                    question: "¿Qué es la desoxirribosa en el ADN?",
+                    options: [
+                        "Una base nitrogenada",
+                        "Un azúcar de cinco carbonos",
+                        "Un grupo fosfato",
+                        "Una proteína"
+                    ],
+                    correct: 1,
+                    explanation: "La desoxirribosa es el azúcar de cinco carbonos que forma parte de los nucleótidos del ADN. Las otras opciones son incorrectas: las bases nitrogenadas son A, T, C, G; el fosfato une nucleótidos; y las proteínas no son parte del ADN."
+                },
+                {
+                    id: 'tema2-5',
+                    question: "¿Qué significa que el ADN es antiparalelo?",
+                    options: [
+                        "Las hebras tienen la misma dirección",
+                        "Las hebras tienen direcciones opuestas (5' a 3' y 3' a 5')",
+                        "Las hebras no tienen bases complementarias",
+                        "Las hebras no están unidas"
+                    ],
+                    correct: 1,
+                    explanation: "El ADN es antiparalelo porque una hebra corre en dirección 5' a 3' y la otra en 3' a 5', permitiendo la complementariedad de bases. Las otras opciones son incorrectas: las hebras tienen direcciones opuestas, son complementarias y están unidas por enlaces de hidrógeno."
+                },
+                {
+                    id: 'tema2-6',
+                    question: "¿Qué estabiliza la doble hélice del ADN?",
+                    options: [
+                        "Enlaces de hidrógeno y apilamiento de bases",
+                        "Enlaces covalentes entre hebras",
+                        "Enlaces iónicos entre azúcares",
+                        "Enlaces peptídicos"
+                    ],
+                    correct: 0,
+                    explanation: "La doble hélice del ADN se estabiliza por enlaces de hidrógeno entre bases complementarias y el apilamiento hidrofóbico de bases. Los enlaces covalentes unen nucleótidos dentro de una hebra, los iónicos no son relevantes, y los peptídicos son para proteínas."
+                },
+                {
+                    id: 'tema2-7',
+                    question: "¿Qué es un nucleosoma?",
+                    options: [
+                        "Una unidad de ADN desnudo",
+                        "ADN envuelto alrededor de histonas",
+                        "Una enzima de replicación",
+                        "Un tipo de ARN"
+                    ],
+                    correct: 1,
+                    explanation: "Un nucleosoma es la unidad básica de la cromatina, donde el ADN se enrolla alrededor de un octámero de histonas para compactarlo. Las otras opciones son incorrectas: el ADN desnudo no forma nucleosomas, no es una enzima, y no es ARN."
+                },
+                {
+                    id: 'tema2-8',
+                    question: "¿Qué función tienen las histonas?",
+                    options: [
+                        "Sintetizar ADN",
+                        "Compactar el ADN en cromatina",
+                        "Cortar el ADN",
+                        "Transcribir ARN"
+                    ],
+                    correct: 1,
+                    explanation: "Las histonas son proteínas que compactan el ADN en cromatina, formando nucleosomas para organizar el material genético. Las otras opciones son incorrectas: el ADN es sintetizado por polimerasas, cortado por enzimas de restricción, y el ARN por ARN polimerasa."
+                },
+                {
+                    id: 'tema2-9',
+                    question: "¿Qué es la cromatina?",
+                    options: [
+                        "Una forma de ARN",
+                        "ADN combinado con proteínas",
+                        "Una enzima de replicación",
+                        "Un tipo de proteína estructural"
+                    ],
+                    correct: 1,
+                    explanation: "La cromatina es el complejo de ADN y proteínas (principalmente histonas) que organiza el material genético en el núcleo. Las otras opciones son incorrectas: no es ARN, no es una enzima, y no es solo una proteína estructural."
+                }
+            ],
+            tema3: [
+                {
+                    id: 'tema3-0',
+                    question: "¿Qué es la replicación del ADN?",
+                    options: [
+                        "La síntesis de ARN",
+                        "La copia del ADN para formar dos moléculas idénticas",
+                        "La traducción de proteínas",
+                        "La unión de histonas"
+                    ],
+                    correct: 1,
+                    explanation: "La replicación del ADN es el proceso por el cual una molécula de ADN se copia para producir dos moléculas idénticas, esencial para la división celular. Las otras opciones son incorrectas: el ARN se sintetiza en la transcripción, las proteínas en la traducción, y las histonas se unen al ADN en la cromatina."
+                },
+                {
+                    id: 'tema3-1',
+                    question: "¿Qué tipo de replicación realiza el ADN?",
+                    options: [
+                        "Conservativa",
+                        "Semiconservativa",
+                        "Dispersiva",
+                        "Aleatoria"
+                    ],
+                    correct: 1,
+                    explanation: "La replicación del ADN es semiconservativa: cada nueva doble hélice contiene una hebra original y una nueva. Esto fue demostrado por el experimento de Meselson-Stahl. Las otras opciones son incorrectas: conservativa y dispersiva fueron hipótesis descartadas, y aleatoria no aplica."
+                },
+                {
+                    id: 'tema3-2',
+                    question: "¿Qué enzima desenrolla la doble hélice del ADN?",
+                    options: [
+                        "ADN polimerasa",
+                        "Helicasa",
+                        "Ligasa",
+                        "Primasa"
+                    ],
+                    correct: 1,
+                    explanation: "La helicasa desenrolla la doble hélice del ADN, separando las hebras para la replicación. Las otras enzimas tienen funciones distintas: ADN polimerasa sintetiza ADN, ligasa une fragmentos, y primasa sintetiza cebadores de ARN."
+                },
+                {
+                    id: 'tema3-3',
+                    question: "¿Qué son los fragmentos de Okazaki?",
+                    options: [
+                        "Segmentos de ARN",
+                        "Fragmentos de ADN en la hebra retrasada",
+                        "Proteínas de unión",
+                        "Bases nitrogenadas"
+                    ],
+                    correct: 1,
+                    explanation: "Los fragmentos de Okazaki son segmentos cortos de ADN sintetizados en la hebra retrasada durante la replicación, debido a la dirección 5' a 3' de la ADN polimerasa. Las otras opciones son incorrectas: no son ARN, no son proteínas, ni bases sueltas."
+                },
+                {
+                    id: 'tema3-4',
+                    question: "¿Qué enzima sintetiza cebadores de ARN?",
+                    options: [
+                        "ADN polimerasa",
+                        "Helicasa",
+                        "Primasa",
+                        "Ligasa"
+                    ],
+                    correct: 2,
+                    explanation: "La primasa sintetiza cebadores de ARN necesarios para iniciar la replicación del ADN, ya que la ADN polimerasa requiere un cebador. Las otras enzimas tienen otras funciones: helicasa desenrolla, ADN polimerasa sintetiza ADN, y ligasa une fragmentos."
+                },
+                {
+                    id: 'tema3-5',
+                    question: "¿Qué hace la ADN ligasa?",
+                    options: [
+                        "Desenrolla el ADN",
+                        "Une fragmentos de ADN",
+                        "Sintetiza ADN",
+                        "Corta el ADN"
+                    ],
+                    correct: 1,
+                    explanation: "La ADN ligasa une los fragmentos de Okazaki en la hebra retrasada y repara cortes en el ADN, formando enlaces fosfodiéster. Las otras opciones son incorrectas: desenrollar es por helicasa, sintetizar por ADN polimerasa, y cortar por enzimas de restricción."
+                },
+                {
+                    id: 'tema3-6',
+                    question: "¿Qué es la horquilla de replicación?",
+                    options: [
+                        "Un sitio donde se unen proteínas",
+                        "La región donde se separa el ADN durante la replicación",
+                        "Un tipo de mutación",
+                        "Un codón de inicio"
+                    ],
+                    correct: 1,
+                    explanation: "La horquilla de replicación es la región donde las hebras de ADN se separan para ser copiadas durante la replicación, formando una estructura en 'Y'. Las otras opciones son incorrectas: no es un sitio de unión de proteínas, no es una mutación, ni un codón."
+                },
+                {
+                    id: 'tema3-7',
+                    question: "¿Qué dirección sigue la síntesis de ADN?",
+                    options: [
+                        "3' a 5'",
+                        "5' a 3'",
+                        "Aleatoria",
+                        "Bidireccional sin polaridad"
+                    ],
+                    correct: 1,
+                    explanation: "La síntesis de ADN siempre ocurre en dirección 5' a 3', ya que la ADN polimerasa añade nucleótidos al extremo 3' de la hebra en crecimiento. Las otras opciones son incorrectas: 3' a 5' no es posible, no es aleatoria, y la bidireccionalidad se refiere a la horquilla, no a la polaridad."
+                },
+                {
+                    id: 'tema3-8',
+                    question: "¿Qué proteína estabiliza las hebras separadas del ADN?",
+                    options: [
+                        "ADN polimerasa",
+                        "Proteína de unión a hebra simple (SSB)",
+                        "Ligasa",
+                        "Primasa"
+                    ],
+                    correct: 1,
+                    explanation: "Las proteínas de unión a hebra simple (SSB) estabilizan las hebras separadas del ADN durante la replicación, evitando que se vuelvan a unir. Las otras opciones tienen otras funciones: ADN polimerasa sintetiza, ligasa une, y primasa crea cebadores."
+                },
+                {
+                    id: 'tema3-9',
+                    question: "¿Qué es el origen de replicación?",
+                    options: [
+                        "Un sitio donde comienza la transcripción",
+                        "Un sitio donde comienza la replicación del ADN",
+                        "Un codón de parada",
+                        "Una proteína de unión"
+                    ],
+                    correct: 1,
+                    explanation: "El origen de replicación es una secuencia específica en el ADN donde comienza la replicación, reconocida por proteínas iniciadoras. Las otras opciones son incorrectas: la transcripción comienza en promotores, el codón de parada es para traducción, y no es una proteína."
+                }
+            ],
+            tema4: [
+                {
+                    id: 'tema4-0',
+                    question: "¿Qué es la transcripción?",
+                    options: [
+                        "La síntesis de ADN a partir de ARN",
+                        "La síntesis de ARN a partir de ADN",
+                        "La síntesis de proteínas",
+                        "La unión de nucleótidos"
+                    ],
+                    correct: 1,
+                    explanation: "La transcripción es el proceso donde se sintetiza ARN a partir de una hebra de ADN, que sirve como molde. Las otras opciones son incorrectas: la síntesis de ADN es replicación, las proteínas se sintetizan en traducción, y la unión de nucleótidos ocurre en ambos procesos."
+                },
+                {
+                    id: 'tema4-1',
+                    question: "¿Qué enzima realiza la transcripción?",
+                    options: [
+                        "ADN polimerasa",
+                        "ARN polimerasa",
+                        "Ligasa",
+                        "Helicasa"
+                    ],
+                    correct: 1,
+                    explanation: "La ARN polimerasa sintetiza ARN durante la transcripción, usando el ADN como molde. Las otras enzimas tienen otras funciones: ADN polimerasa para replicación, ligasa une fragmentos, y helicasa desenrolla ADN."
+                },
+                {
+                    id: 'tema4-2',
+                    question: "¿Qué es el ARNm?",
+                    options: [
+                        "Un ARN que transporta aminoácidos",
+                        "Un ARN que lleva el código genético para la traducción",
+                        "Un ARN estructural del ribosoma",
+                        "Un ARN que regula genes"
+                    ],
+                    correct: 1,
+                    explanation: "El ARN mensajero (ARNm) lleva el código genético desde el ADN al ribosoma para la síntesis de proteínas. Las otras opciones son incorrectas: el ARNt transporta aminoácidos, el ARNr es estructural, y el ARN regulador incluye miARN."
+                },
+                {
+                    id: 'tema4-3',
+                    question: "¿Qué es un promotor en la transcripción?",
+                    options: [
+                        "Un sitio donde termina la transcripción",
+                        "Una secuencia de ADN donde comienza la transcripción",
+                        "Una proteína que corta ARN",
+                        "Un codón de parada"
+                    ],
+                    correct: 1,
+                    explanation: "El promotor es una secuencia de ADN donde la ARN polimerasa se une para iniciar la transcripción. Las otras opciones son incorrectas: el terminador marca el fin, no es una proteína, y el codón de parada es para traducción."
+                },
+                {
+                    id: 'tema4-4',
+                    question: "¿Qué sucede en la elongación de la transcripción?",
+                    options: [
+                        "La ARN polimerasa se une al ADN",
+                        "Se sintetiza ARN complementario al ADN",
+                        "El ARN se degrada",
+                        "Se unen fragmentos de ADN"
+                    ],
+                    correct: 1,
+                    explanation: "Durante la elongación, la ARN polimerasa sintetiza una hebra de ARN complementaria al ADN molde. Las otras opciones son incorrectas: la unión ocurre en la iniciación, el ARN no se degrada, y los fragmentos de ADN son para replicación."
+                },
+                {
+                    id: 'tema4-5',
+                    question: "¿Qué es un intrón?",
+                    options: [
+                        "Una región codificante de un gen",
+                        "Una región no codificante eliminada del ARN",
+                        "Una proteína estructural",
+                        "Un codón de inicio"
+                    ],
+                    correct: 1,
+                    explanation: "Los intrones son regiones no codificantes en el ARN transcrito que se eliminan mediante empalme (splicing) en eucariotas. Las otras opciones son incorrectas: las regiones codificantes son exones, no es una proteína, ni un codón."
+                },
+                {
+                    id: 'tema4-6',
+                    question: "¿Qué es el empalme (splicing)?",
+                    options: [
+                        "La unión de fragmentos de ADN",
+                        "La eliminación de intrones y unión de exones",
+                        "La síntesis de proteínas",
+                        "La copia del ADN"
+                    ],
+                    correct: 1,
+                    explanation: "El empalme (splicing) elimina los intrones y une los exones en el ARN transcrito para formar un ARNm maduro en eucariotas. Las otras opciones son incorrectas: la unión de ADN es por ligasa, las proteínas se sintetizan en traducción, y la copia es replicación."
+                },
+                {
+                    id: 'tema4-7',
+                    question: "¿Qué es un exón?",
+                    options: [
+                        "Una región no codificante",
+                        "Una región codificante que permanece en el ARNm",
+                        "Una enzima de transcripción",
+                        "Un tipo de ARN"
+                    ],
+                    correct: 1,
+                    explanation: "Los exones son regiones codificantes (o a veces reguladoras) que permanecen en el ARNm maduro tras el empalme. Las otras opciones son incorrectas: los intrones son no codificantes, no es una enzima, y no es un tipo de ARN."
+                },
+                {
+                    id: 'tema4-8',
+                    question: "¿Qué sucede en la terminación de la transcripción?",
+                    options: [
+                        "La ARN polimerasa se une al ADN",
+                        "La ARN polimerasa se detiene y libera el ARN",
+                        "Se sintetiza ADN",
+                        "Se unen fragmentos de Okazaki"
+                    ],
+                    correct: 1,
+                    explanation: "En la terminación, la ARN polimerasa reconoce una señal (como un terminador) y libera el ARN transcrito. Las otras opciones son incorrectas: la unión ocurre en la iniciación, el ADN no se sintetiza, y los fragmentos de Okazaki son para replicación."
+                },
+                {
+                    id: 'tema4-9',
+                    question: "¿Qué es el poliadenilado en el ARNm?",
+                    options: [
+                        "Una secuencia de ADN",
+                        "Una cola de adeninas añadida al ARN",
+                        "Una proteína de unión",
+                        "Un codón de inicio"
+                    ],
+                    correct: 1,
+                    explanation: "El poliadenilado es una cola de adeninas añadida al extremo 3' del ARNm en eucariotas, que estabiliza el ARN y facilita la traducción. Las otras opciones son incorrectas: no es ADN, no es una proteína, ni un codón."
+                }
+            ],
+            tema5: [
+                {
+                    id: 'tema5-0',
+                    question: "¿Qué es la traducción?",
+                    options: [
+                        "La síntesis de ADN",
+                        "La síntesis de proteínas a partir de ARNm",
+                        "La síntesis de ARN",
+                        "La unión de nucleótidos"
+                    ],
+                    correct: 1,
+                    explanation: "La traducción es el proceso donde el ARNm es leído por el ribosoma para sintetizar una proteína, siguiendo el código genético. Las otras opciones son incorrectas: el ADN se sintetiza en replicación, el ARN en transcripción, y los nucleótidos se unen en ambos procesos."
+                },
+                {
+                    id: 'tema5-1',
+                    question: "¿Dónde ocurre la traducción en eucariotas?",
+                    options: [
+                        "Núcleo",
+                        "Mitocondria",
+                        "Citoplasma",
+                        "Membrana celular"
+                    ],
+                    correct: 2,
+                    explanation: "En eucariotas, la traducción ocurre en el citoplasma, en los ribosomas libres o asociados al retículo endoplásmico. Las otras opciones son incorrectas: el núcleo es para transcripción, las mitocondrias tienen traducción propia, y la membrana no es el sitio."
+                },
+                {
+                    id: 'tema5-2',
+                    question: "¿Qué molécula transporta aminoácidos al ribosoma?",
+                    options: [
+                        "ARNm",
+                        "ARNt",
+                        "ARNr",
+                        "ADN"
+                    ],
+                    correct: 1,
+                    explanation: "El ARN de transferencia (ARNt) transporta aminoácidos específicos al ribosoma, emparejándose con el ARNm mediante su anticodón. Las otras opciones son incorrectas: ARNm lleva el código, ARNr es estructural, y el ADN no participa directamente."
+                },
+                {
+                    id: 'tema5-3',
+                    question: "¿Qué es un codón?",
+                    options: [
+                        "Una proteína",
+                        "Un triplete de nucleótidos en el ARNm",
+                        "Una enzima",
+                        "Un nucleótido único"
+                    ],
+                    correct: 1,
+                    explanation: "Un codón es un triplete de nucleótidos en el ARNm que especifica un aminoácido o una señal de parada. Las otras opciones son incorrectas: no es una proteína, enzima, ni un nucleótido único."
+                },
+                {
+                    id: 'tema5-4',
+                    question: "¿Qué es el anticodón?",
+                    options: [
+                        "Una secuencia en el ARNm",
+                        "Una secuencia en el ARNt que se empareja con el codón",
+                        "Una proteína ribosómica",
+                        "Un sitio de replicación"
+                    ],
+                    correct: 1,
+                    explanation: "El anticodón es una secuencia de tres nucleótidos en el ARNt que se empareja con un codón complementario en el ARNm durante la traducción. Las otras opciones son incorrectas: el ARNm tiene codones, no es una proteína, ni un sitio de replicación."
+                },
+                {
+                    id: 'tema5-5',
+                    question: "¿Qué es el ribosoma?",
+                    options: [
+                        "Una enzima de replicación",
+                        "El lugar donde ocurre la traducción",
+                        "Una base nitrogenada",
+                        "Un tipo de ADN"
+                    ],
+                    correct: 1,
+                    explanation: "El ribosoma es el complejo molecular donde ocurre la traducción, uniendo ARNm, ARNt y sintetizando proteínas. Las otras opciones son incorrectas: no es una enzima, no es una base, ni ADN."
+                },
+                {
+                    id: 'tema5-6',
+                    question: "¿Qué señala un codón de parada?",
+                    options: [
+                        "Inicio de la traducción",
+                        "Fin de la traducción",
+                        "Un aminoácido específico",
+                        "Un sitio de replicación"
+                    ],
+                    correct: 1,
+                    explanation: "Un codón de parada (UAA, UAG, UGA) señala el fin de la traducción, deteniendo la síntesis de la proteína. Las otras opciones son incorrectas: el inicio es por AUG, no codifica aminoácidos, y no es para replicación."
+                },
+                {
+                    id: 'tema5-7',
+                    question: "¿Qué es la iniciación de la traducción?",
+                    options: [
+                        "La unión del ARNm al ribosoma",
+                        "La síntesis de ADN",
+                        "La eliminación de intrones",
+                        "La unión de fragmentos de Okazaki"
+                    ],
+                    correct: 0,
+                    explanation: "La iniciación de la traducción implica la unión del ARNm al ribosoma, el reconocimiento del codón de inicio (AUG) y la llegada del primer ARNt. Las otras opciones son incorrectas: la síntesis de ADN es replicación, la eliminación de intrones es empalme, y los fragmentos de Okazaki son para replicación."
+                },
+                {
+                    id: 'tema5-8',
+                    question: "¿Qué es un polipéptido?",
+                    options: [
+                        "Una cadena de ADN",
+                        "Una cadena de aminoácidos",
+                        "Un tipo de ARN",
+                        "Una base nitrogenada"
+                    ],
+                    correct: 1,
+                    explanation: "Un polipéptido es una cadena de aminoácidos unida por enlaces peptídicos, formada durante la traducción. Las otras opciones son incorrectas: el ADN y ARN son ácidos nucleicos, y las bases son componentes de nucleótidos."
+                },
+                {
+                    id: 'tema5-9',
+                    question: "¿Qué enzima une aminoácidos al ARNt?",
+                    options: [
+                        "ADN polimerasa",
+                        "ARN polimerasa",
+                        "Aminoacil-ARNt sintetasa",
+                        "Ligasa"
+                    ],
+                    correct: 2,
+                    explanation: "La aminoacil-ARNt sintetasa une aminoácidos específicos al ARNt, asegurando la precisión en la traducción. Las otras enzimas tienen otras funciones: ADN polimerasa para replicación, ARN polimerasa para transcripción, y ligasa para unir ADN."
+                }
+            ],
+            tema6: [
+                {
+                    id: 'tema6-0',
+                    question: "¿Qué es el código genético?",
+                    options: [
+                        "Una secuencia de ADN",
+                        "La correspondencia entre codones y aminoácidos",
+                        "Una proteína estructural",
+                        "Un tipo de enzima"
+                    ],
+                    correct: 1,
+                    explanation: "El código genético es la correspondencia entre codones (tripletes de nucleótidos en el ARNm) y aminoácidos o señales de parada. Las otras opciones son incorrectas: no es una secuencia de ADN, no es una proteína, ni una enzima."
+                },
+                {
+                    id: 'tema6-1',
+                    question: "¿Cuántos codones hay en el código genético?",
+                    options: [
+                        "20",
+                        "64",
+                        "4",
+                        "100"
+                    ],
+                    correct: 1,
+                    explanation: "El código genético tiene 64 codones (4 bases posibles en 3 posiciones: 4³ = 64), que codifican 20 aminoácidos y señales de parada. Las otras opciones son incorrectas."
+                },
+                {
+                    id: 'tema6-2',
+                    question: "¿Qué característica define al código genético?",
+                    options: [
+                        "Es no degenerado",
+                        "Es universal, degenerado y sin ambigüedad",
+                        "Es específico para cada especie",
+                        "Codifica lípidos"
+                    ],
+                    correct: 1,
+                    explanation: "El código genético es universal (casi idéntico en todos los organismos), degenerado (varios codones por aminoácido) y sin ambigüedad (cada codón codifica un solo aminoácido o señal). Las otras opciones son incorrectas: es degenerado, no específico por especie, y no codifica lípidos."
+                },
+                {
+                    id: 'tema6-3',
+                    question: "¿Qué codón inicia la traducción?",
+                    options: [
+                        "UAA",
+                        "AUG",
+                        "UAG",
+                        "UGA"
+                    ],
+                    correct: 1,
+                    explanation: "El codón AUG inicia la traducción, codificando metionina en eucariotas y formilmetionina en procariotas. Los otros codones (UAA, UAG, UGA) son de parada."
+                },
+                {
+                    id: 'tema6-4',
+                    question: "¿Cuántos codones de parada existen?",
+                    options: [
+                        "1",
+                        "2",
+                        "3",
+                        "4"
+                    ],
+                    correct: 2,
+                    explanation: "Existen tres codones de parada: UAA, UAG y UGA, que señalan el fin de la traducción. Las otras opciones son incorrectas."
+                },
+                {
+                    id: 'tema6-5',
+                    question: "¿Qué significa que el código genético es degenerado?",
+                    options: [
+                        "Cada codón codifica múltiples aminoácidos",
+                        "Varios codones codifican el mismo aminoácido",
+                        "No es universal",
+                        "No usa ARN"
+                    ],
+                    correct: 1,
+                    explanation: "La degeneración del código genético significa que varios codones pueden codificar el mismo aminoácido (e.g., UUU y UUC para fenilalanina). Las otras opciones son incorrectas: cada codón es específico, es universal, y usa ARN."
+                },
+                {
+                    id: 'tema6-6',
+                    question: "¿Qué aminoácido codifica el codón UUU?",
+                    options: [
+                        "Fenilalanina",
+                        "Lisina",
+                        "Glicina",
+                        "Prolina"
+                    ],
+                    correct: 0,
+                    explanation: "El codón UUU codifica fenilalanina según el código genético. Las otras opciones son incorrectas: lisina (AAA, AAG), glicina (GGU, GGC, etc.), prolina (CCU, CCC, etc.)."
+                },
+                {
+                    id: 'tema6-7',
+                    question: "¿En qué molécula se lee el código genético?",
+                    options: [
+                        "ADN",
+                        "ARNm",
+                        "ARNt",
+                        "Proteína"
+                    ],
+                    correct: 1,
+                    explanation: "El código genético se lee en el ARNm durante la traducción, donde los codones se emparejan con los anticodones del ARNt. Las otras opciones son incorrectas: el ADN es el molde, el ARNt lleva aminoácidos, y las proteínas son el producto."
+                },
+                {
+                    id: 'tema6-8',
+                    question: "¿Qué codón codifica metionina?",
+                    options: [
+                        "UAA",
+                        "AUG",
+                        "UAG",
+                        "UGA"
+                    ],
+                    correct: 1,
+                    explanation: "El codón AUG codifica metionina y también actúa como codón de inicio. Los otros codones (UAA, UAG, UGA) son de parada."
+                },
+                {
+                    id: 'tema6-9',
+                    question: "¿Qué sucede si un codón muta?",
+                    options: [
+                        "Siempre produce una proteína idéntica",
+                        "Puede cambiar el aminoácido o detener la traducción",
+                        "No afecta la traducción",
+                        "Siempre produce un ARN diferente"
+                    ],
+                    correct: 1,
+                    explanation: "Una mutación en un codón puede cambiar el aminoácido (mutación missense), introducir un codón de parada (nonsense), o no tener efecto (silenciosa). Las otras opciones son incorrectas: no siempre es idéntica, sí afecta la traducción, y el ARN no cambia directamente."
+                }
+            ],
+            tema7: [
+                {
+                    id: 'tema7-0',
+                    question: "¿Qué es la regulación de la expresión génica?",
+                    options: [
+                        "La síntesis de ADN",
+                        "El control de cuáles genes se transcriben y cuándo",
+                        "La replicación del ADN",
+                        "La degradación de proteínas"
+                    ],
+                    correct: 1,
+                    explanation: "La regulación de la expresión génica controla qué genes se transcriben, cuándo y en qué cantidad, ajustándose a las necesidades celulares. Las otras opciones son incorrectas: la síntesis es replicación, y la degradación de proteínas es un proceso diferente."
+                },
+                {
+                    id: 'tema7-1',
+                    question: "¿Qué es un factor de transcripción?",
+                    options: [
+                        "Una enzima que corta ADN",
+                        "Una proteína que regula la transcripción al unirse al ADN",
+                        "Un tipo de ARN",
+                        "Un aminoácido"
+                    ],
+                    correct: 1,
+                    explanation: "Los factores de transcripción son proteínas que se unen a secuencias específicas de ADN (como promotores o potenciadores) para regular la transcripción. Las otras opciones son incorrectas: no es una enzima de corte, no es ARN, ni un aminoácido."
+                },
+                {
+                    id: 'tema7-2',
+                    question: "¿Qué es un operón en procariotas?",
+                    options: [
+                        "Un grupo de genes regulados juntos",
+                        "Una enzima de replicación",
+                        "Un tipo de ARN",
+                        "Una proteína estructural"
+                    ],
+                    correct: 0,
+                    explanation: "Un operón es un grupo de genes en procariotas que se transcriben juntos bajo un solo promotor, regulados coordinadamente (e.g., operón lac). Las otras opciones son incorrectas: no es una enzima, no es ARN, ni una proteína estructural."
+                },
+                {
+                    id: 'tema7-3',
+                    question: "¿Qué hace el represor en el operón lac?",
+                    options: [
+                        "Activa la transcripción",
+                        "Se une al operador, bloqueando la transcripción",
+                        "Corta el ADN",
+                        "Sintetiza lactosa"
+                    ],
+                    correct: 1,
+                    explanation: "El represor del operón lac se une al operador, bloqueando la transcripción en ausencia de lactosa. Cuando la lactosa está presente, se une al represor, desactivándolo. Las otras opciones son incorrectas: no activa, no corta ADN, ni sintetiza lactosa."
+                },
+                {
+                    id: 'tema7-4',
+                    question: "¿Qué es un potenciador (enhancer)?",
+                    options: [
+                        "Una secuencia que reprime la transcripción",
+                        "Una secuencia que aumenta la transcripción",
+                        "Una enzima de replicación",
+                        "Un codón de parada"
+                    ],
+                    correct: 1,
+                    explanation: "Un potenciador es una secuencia de ADN en eucariotas que aumenta la transcripción al unirse a factores de transcripción, incluso a gran distancia del gen. Las otras opciones son incorrectas: la represión es por silenciadores, no es una enzima, ni un codón."
+                },
+                {
+                    id: 'tema7-5',
+                    question: "¿Qué es la metilación del ADN?",
+                    options: [
+                        "Añadir grupos metilo al ADN, regulando genes",
+                        "Añadir fosfatos al ADN",
+                        "Cortar el ADN",
+                        "Sintetizar ARN"
+                    ],
+                    correct: 0,
+                    explanation: "La metilación del ADN añade grupos metilo a bases (e.g., citosinas), generalmente reprimiendo la transcripción al compactar la cromatina. Las otras opciones son incorrectas: los fosfatos no se añaden en metilación, el corte es por enzimas de restricción, y el ARN es por transcripción."
+                },
+                {
+                    id: 'tema7-6',
+                    question: "¿Qué es el ARN de interferencia (RNAi)?",
+                    options: [
+                        "ARN que codifica proteínas",
+                        "ARN que silencia genes al degradar ARNm",
+                        "ARN que inicia la replicación",
+                        "ARN que une histonas"
+                    ],
+                    correct: 1,
+                    explanation: "El ARN de interferencia (RNAi, como siRNA o miRNA) silencia genes al degradar ARNm o reprimir su traducción. Las otras opciones son incorrectas: el ARNm codifica proteínas, no inicia replicación, y no une histonas."
+                },
+                {
+                    id: 'tema7-7',
+                    question: "¿Qué es un elemento cis-regulador?",
+                    options: [
+                        "Una proteína que regula genes",
+                        "Una secuencia de ADN que regula genes cercanos",
+                        "Un tipo de ARN",
+                        "Una enzima de replicación"
+                    ],
+                    correct: 1,
+                    explanation: "Un elemento cis-regulador (como promotores o potenciadores) es una secuencia de ADN que regula la transcripción de genes cercanos al unirse a factores de transcripción. Las otras opciones son incorrectas: las proteínas son trans-reguladores, no es ARN, ni una enzima."
+                },
+                {
+                    id: 'tema7-8',
+                    question: "¿Qué es la regulación postranscripcional?",
+                    options: [
+                        "Modificación del ADN",
+                        "Control del ARNm tras la transcripción",
+                        "Síntesis de ADN",
+                        "Unión de fragmentos de Okazaki"
+                    ],
+                    correct: 1,
+                    explanation: "La regulación postranscripcional controla el ARNm tras la transcripción mediante empalme alternativo, estabilidad, o traducción. Las otras opciones son incorrectas: la modificación del ADN es epigenética, la síntesis es replicación, y los fragmentos de Okazaki son para replicación."
+                },
+                {
+                    id: 'tema7-9',
+                    question: "¿Qué es el complejo de iniciación de la transcripción?",
+                    options: [
+                        "Un grupo de histonas",
+                        "ARN polimerasa y factores de transcripción",
+                        "Un complejo de replicación",
+                        "Un ribosoma"
+                    ],
+                    correct: 1,
+                    explanation: "El complejo de iniciación de la transcripción incluye la ARN polimerasa II y factores de transcripción (como TFIID) que se ensamblan en el promotor para iniciar la transcripción. Las otras opciones son incorrectas: no es histonas, no es replicación, ni un ribosoma."
+                }
+            ],
+            tema8: [
+                {
+                    id: 'tema8-0',
+                    question: "¿Qué es una mutación?",
+                    options: [
+                        "Un cambio permanente en la secuencia de ADN",
+                        "La síntesis de ARN",
+                        "La unión de proteínas",
+                        "Un cambio en la cromatina"
+                    ],
+                    correct: 0,
+                    explanation: "Una mutación es un cambio permanente en la secuencia de ADN, que puede alterar genes o su expresión. Las otras opciones son incorrectas: el ARN se sintetiza en transcripción, las proteínas no se unen por mutaciones, y los cambios en cromatina son epigenéticos."
+                },
+                {
+                    id: 'tema8-1',
+                    question: "¿Qué es una mutación puntual?",
+                    options: [
+                        "Un cambio en un solo nucleótido",
+                        "La eliminación de un cromosoma",
+                        "La duplicación de un gen",
+                        "La translocación de ADN"
+                    ],
+                    correct: 0,
+                    explanation: "Una mutación puntual es el cambio de un solo nucleótido (e.g., sustitución, inserción o deleción). Las otras opciones son incorrectas: la eliminación de un cromosoma es una aberración cromosómica, y la duplicación o translocación son mutaciones más grandes."
+                },
+                {
+                    id: 'tema8-2',
+                    question: "¿Qué es una mutación sin sentido (nonsense)?",
+                    options: [
+                        "Cambia un aminoácido por otro",
+                        "Introduce un codón de parada",
+                        "No afecta la proteína",
+                        "Elimina un gen"
+                    ],
+                    correct: 1,
+                    explanation: "Una mutación sin sentido (nonsense) introduce un codón de parada prematuro, deteniendo la traducción y produciendo una proteína truncada. Las otras opciones son incorrectas: el cambio de aminoácido es missense, sin efecto es silenciosa, y eliminar un gen es una deleción."
+                },
+                {
+                    id: 'tema8-3',
+                    question: "¿Qué es una mutación silenciosa?",
+                    options: [
+                        "Cambia la proteína",
+                        "No cambia la proteína",
+                        "Introduce un codón de parada",
+                        "Elimina un cromosoma"
+                    ],
+                    correct: 1,
+                    explanation: "Una mutación silenciosa cambia un nucleótido, pero no altera el aminoácido codificado debido a la degeneración del código genético. Las otras opciones son incorrectas: cambiar la proteína es missense o nonsense, y eliminar un cromosoma es una aberración."
+                },
+                {
+                    id: 'tema8-4',
+                    question: "¿Qué es una mutación de cambio de marco (frameshift)?",
+                    options: [
+                        "Sustitución de una base",
+                        "Inserción o deleción que altera el marco de lectura",
+                        "Cambio en la cromatina",
+                        "Duplicación de un gen"
+                    ],
+                    correct: 1,
+                    explanation: "Una mutación de cambio de marco implica la inserción o deleción de nucleótidos no múltiplos de tres, alterando el marco de lectura y la proteína resultante. Las otras opciones son incorrectas: la sustitución es puntual, la cromatina es epigenética, y la duplicación es otro tipo de mutación."
+                },
+                {
+                    id: 'tema8-5',
+                    question: "¿Qué es una mutación missense?",
+                    options: [
+                        "Cambia un aminoácido por otro",
+                        "Introduce un codón de parada",
+                        "No afecta la proteína",
+                        "Elimina un gen"
+                    ],
+                    correct: 0,
+                    explanation: "Una mutación missense cambia un nucleótido, resultando en un aminoácido diferente en la proteína. Las otras opciones son incorrectas: el codón de parada es nonsense, sin efecto es silenciosa, y eliminar un gen es una deleción."
+                },
+                {
+                    id: 'tema8-6',
+                    question: "¿Qué causa mutaciones?",
+                    options: [
+                        "Errores en la replicación, radiación o químicos",
+                        "Síntesis de ARN",
+                        "Unión de histonas",
+                        "Traducción de proteínas"
+                    ],
+                    correct: 0,
+                    explanation: "Las mutaciones son causadas por errores en la replicación, radiación, químicos mutagénicos o agentes externos. Las otras opciones son incorrectas: la síntesis de ARN es transcripción, la unión de histonas es para cromatina, y la traducción produce proteínas."
+                },
+                {
+                    id: 'tema8-7',
+                    question: "¿Qué es la reparación por escisión de nucleótidos?",
+                    options: [
+                        "Repara daños en el ADN eliminando un segmento",
+                        "Une fragmentos de Okazaki",
+                        "Sintetiza ARN",
+                        "Degrada proteínas"
+                    ],
+                    correct: 0,
+                    explanation: "La reparación por escisión de nucleótidos elimina un segmento dañado del ADN y lo reemplaza con nuevos nucleótidos. Las otras opciones son incorrectas: los fragmentos de Okazaki son unidos por ligasa, el ARN es sintetizado por transcripción, y las proteínas se degradan por el proteasoma."
+                },
+                {
+                    id: 'tema8-8',
+                    question: "¿Qué es la reparación por recombinación homóloga?",
+                    options: [
+                        "Repara roturas de doble hebra usando una hebra homóloga",
+                        "Une fragmentos de Okazaki",
+                        "Sintetiza ARN",
+                        "Degrada ADN dañado"
+                    ],
+                    correct: 0,
+                    explanation: "La reparación por recombinación homóloga usa una hebra homóloga (como la cromátida hermana) para reparar roturas de doble hebra con alta precisión, especialmente durante la fase S/G2 del ciclo celular. Las otras opciones son incorrectas: los fragmentos de Okazaki son unidos por ligasa, el ARN es sintetizado por ARN polimerasa, y el ADN dañado no se degrada en este proceso."
+                },
+                {
+                    id: 'tema8-9',
+                    question: "¿Qué es una mutación de transición?",
+                    options: [
+                        "Sustitución de una purina por una pirimidina",
+                        "Sustitución de una purina por otra purina o una pirimidina por otra pirimidina",
+                        "Inserción de un nucleótido",
+                        "Eliminación de un exón"
+                    ],
+                    correct: 1,
+                    explanation: "Una mutación de transición es la sustitución de una purina (A, G) por otra purina o una pirimidina (C, T) por otra pirimidina (e.g., A→G). Esto ocurre frecuentemente por errores de emparejamiento. Las otras opciones son incorrectas: purina por pirimidina es una transversion, la inserción no es una sustitución, y la eliminación de exones es un defecto de empalme."
+                }
+            ],
+            tema9: [
+                {
+                    id: 'tema9-0',
+                    question: "¿Qué es un operón?",
+                    options: [
+                        "Una enzima de replicación",
+                        "Un grupo de genes regulados juntos en procariotas",
+                        "Una proteína de unión al ADN",
+                        "Un tipo de ARN"
+                    ],
+                    correct: 1,
+                    explanation: "Un operón es una unidad funcional en procariotas donde varios genes relacionados se transcriben juntos bajo un solo promotor, regulados coordinadamente (e.g., operón lac). Las otras opciones son incorrectas: no es una enzima, no es una proteína de unión, y no es ARN."
+                },
+                {
+                    id: 'tema9-1',
+                    question: "¿Qué hace el represor en el operón lac?",
+                    options: [
+                        "Activa la transcripción",
+                        "Se une al operador, bloqueando la transcripción",
+                        "Sintetiza lactosa",
+                        "Une fragmentos de ADN"
+                    ],
+                    correct: 1,
+                    explanation: "El represor del operón lac se une al operador, bloqueando la unión de la ARN polimerasa y reprimiendo la transcripción en ausencia de lactosa. Cuando la lactosa está presente, se une al represor, desactivándolo. Las otras opciones son incorrectas: no activa la transcripción, no sintetiza lactosa, y no une ADN."
+                },
+                {
+                    id: 'tema9-2',
+                    question: "¿Qué es un potenciador (enhancer)?",
+                    options: [
+                        "Una secuencia que reprime la transcripción",
+                        "Una secuencia que aumenta la transcripción al unirse a factores",
+                        "Una enzima de replicación",
+                        "Un codón de parada"
+                    ],
+                    correct: 1,
+                    explanation: "Un potenciador es una secuencia de ADN en eucariotas que aumenta la transcripción al unirse a factores de transcripción, incluso a gran distancia del gen. Las otras opciones son incorrectas: la represión es por silenciadores, no es una enzima, y no es un codón."
+                },
+                {
+                    id: 'tema9-3',
+                    question: "¿Qué es un silenciador (silencer)?",
+                    options: [
+                        "Una secuencia que activa la transcripción",
+                        "Una secuencia que reprime la transcripción",
+                        "Una proteína de unión al ARN",
+                        "Un tipo de ARN"
+                    ],
+                    correct: 1,
+                    explanation: "Un silenciador es una secuencia de ADN que reprime la transcripción al unirse a proteínas represoras, regulando negativamente la expresión génica. Las otras opciones son incorrectas: la activación es por potenciadores, no es una proteína de unión al ARN, y no es ARN."
+                },
+                {
+                    id: 'tema9-4',
+                    question: "¿Qué es la metilación del ADN?",
+                    options: [
+                        "Añadir grupos metilo al ADN, regulando la expresión",
+                        "Añadir fosfatos al ADN",
+                        "Cortar el ADN",
+                        "Sintetizar ARN"
+                    ],
+                    correct: 0,
+                    explanation: "La metilación del ADN añade grupos metilo a bases (e.g., citosinas en regiones CpG), generalmente reprimiendo la transcripción al compactar la cromatina. Las otras opciones son incorrectas: los fosfatos no se añaden en metilación, el corte es por enzimas de restricción, y el ARN es sintetizado por transcripción."
+                },
+                {
+                    id: 'tema9-5',
+                    question: "¿Qué es un factor de transcripción específico?",
+                    options: [
+                        "Se une a todos los promotores",
+                        "Se une a secuencias específicas, regulando genes concretos",
+                        "Degrada el ADN",
+                        "Une fragmentos de Okazaki"
+                    ],
+                    correct: 1,
+                    explanation: "Los factores de transcripción específicos se unen a secuencias de ADN particulares (e.g., potenciadores) para regular genes específicos, a diferencia de los factores generales. Las otras opciones son incorrectas: no se unen a todos los promotores, no degradan ADN, y no unen fragmentos de Okazaki."
+                },
+                {
+                    id: 'tema9-6',
+                    question: "¿Qué es el complejo de iniciación de la transcripción?",
+                    options: [
+                        "Un grupo de histonas",
+                        "ARN polimerasa y factores de transcripción en el promotor",
+                        "Un complejo de replicación",
+                        "Un ribosoma"
+                    ],
+                    correct: 1,
+                    explanation: "El complejo de iniciación de la transcripción incluye la ARN polimerasa II y factores de transcripción (como TFIID) que se ensamblan en el promotor para iniciar la transcripción en eucariotas. Las otras opciones son incorrectas: no es histonas, no es replicación, y no es un ribosoma."
+                },
+                {
+                    id: 'tema9-7',
+                    question: "¿Qué es la regulación postranscripcional?",
+                    options: [
+                        "Modificación del ADN",
+                        "Control del ARNm tras la transcripción",
+                        "Síntesis de ADN",
+                        "Unión de fragmentos de Okazaki"
+                    ],
+                    correct: 1,
+                    explanation: "La regulación postranscripcional controla el ARNm tras la transcripción mediante empalme alternativo, estabilidad, o traducción. Las otras opciones son incorrectas: la modificación del ADN es regulación epigenética, la síntesis de ADN es replicación, y los fragmentos de Okazaki son para replicación."
+                },
+                {
+                    id: 'tema9-8',
+                    question: "¿Qué es el ARN de interferencia (RNAi)?",
+                    options: [
+                        "ARN que codifica proteínas",
+                        "ARN que silencia genes al degradar ARNm",
+                        "ARN que inicia la replicación",
+                        "ARN que une histonas"
+                    ],
+                    correct: 1,
+                    explanation: "El ARN de interferencia (RNAi), como siRNA o miRNA, silencia genes al degradar ARNm específico o reprimir su traducción, regulando la expresión génica. Las otras opciones son incorrectas: el ARNm codifica proteínas, no inicia replicación, y no une histonas."
+                },
+                {
+                    id: 'tema9-9',
+                    question: "¿Qué es un elemento cis-regulador?",
+                    options: [
+                        "Una proteína que regula genes",
+                        "Una secuencia de ADN que regula genes cercanos",
+                        "Un tipo de ARN",
+                        "Una enzima de replicación"
+                    ],
+                    correct: 1,
+                    explanation: "Un elemento cis-regulador (como promotores o potenciadores) es una secuencia de ADN que regula la transcripción de genes cercanos al unirse a factores de transcripción. Las otras opciones son incorrectas: las proteínas son trans-reguladores, no es ARN, y no es una enzima."
+                }
+            ],
+            tema10: [
+                {
+                    id: 'tema10-0',
+                    question: "¿Qué es la PCR?",
+                    options: [
+                        "Una técnica para clonar genes",
+                        "Una técnica para amplificar ADN",
+                        "Una técnica para degradar ARN",
+                        "Una técnica para sintetizar proteínas"
+                    ],
+                    correct: 1,
+                    explanation: "La PCR (reacción en cadena de la polimerasa) amplifica regiones específicas de ADN mediante ciclos de desnaturalización, alineación y extensión usando cebadores y Taq polimerasa. Las otras opciones son incorrectas: la clonación usa vectores, no degrada ARN, y no sintetiza proteínas."
+                },
+                {
+                    id: 'tema10-1',
+                    question: "¿Qué es la electroforesis en gel?",
+                    options: [
+                        "Una técnica para clonar ADN",
+                        "Una técnica para separar ADN por tamaño",
+                        "Una técnica para transcribir genes",
+                        "Una técnica para degradar proteínas"
+                    ],
+                    correct: 1,
+                    explanation: "La electroforesis en gel separa fragmentos de ADN (o ARN/proteínas) según su tamaño al migrar en un campo eléctrico a través de un gel (e.g., agarosa). Las otras opciones son incorrectas: la clonación usa vectores, no transcribe genes, y no degrada proteínas."
+                },
+                {
+                    id: 'tema10-2',
+                    question: "¿Qué son las enzimas de restricción?",
+                    options: [
+                        "Enzimas que sintetizan ADN",
+                        "Enzimas que cortan ADN en sitios específicos",
+                        "Enzimas que transcriben ARN",
+                        "Enzimas que degradan ARN"
+                    ],
+                    correct: 1,
+                    explanation: "Las enzimas de restricción cortan el ADN en secuencias específicas (sitios de reconocimiento), generando extremos cohesivos o romos, esenciales en clonación. Las otras opciones son incorrectas: el ADN es sintetizado por polimerasas, el ARN por ARN polimerasa, y no degradan ARN."
+                },
+                {
+                    id: 'tema10-3',
+                    question: "¿Qué es la hibridación Southern?",
+                    options: [
+                        "Detecta proteínas específicas",
+                        "Detecta secuencias de ADN específicas",
+                        "Amplifica ARN",
+                        "Clona genes"
+                    ],
+                    correct: 1,
+                    explanation: "La hibridación Southern detecta secuencias de ADN específicas en un gel transferido a una membrana, usando sondas marcadas. Las otras opciones son incorrectas: las proteínas se detectan por Western, el ARN por Northern, y la clonación usa vectores."
+                },
+                {
+                    id: 'tema10-4',
+                    question: "¿Qué es la RT-PCR?",
+                    options: [
+                        "Amplifica ADN genómico",
+                        "Convierte ARN en ADN y lo amplifica",
+                        "Degrada ARN",
+                        "Sintetiza proteínas"
+                    ],
+                    correct: 1,
+                    explanation: "La RT-PCR (PCR con transcriptasa inversa) convierte ARN en ADNc usando transcriptasa inversa y luego amplifica el ADNc mediante PCR, útil para estudiar expresión génica. Las otras opciones son incorrectas: no amplifica ADN genómico directamente, no degrada ARN, y no sintetiza proteínas."
+                },
+                {
+                    id: 'tema10-5',
+                    question: "¿Qué es la secuenciación de Sanger?",
+                    options: [
+                        "Amplifica ADN",
+                        "Determina la secuencia de nucleótidos en ADN",
+                        "Corta ADN",
+                        "Une fragmentos de Okazaki"
+                    ],
+                    correct: 1,
+                    explanation: "La secuenciación de Sanger usa dideoxirribonucleótidos (ddNTPs) para determinar la secuencia exacta de nucleótidos en un fragmento de ADN. Las otras opciones son incorrectas: la amplificación es por PCR, el corte por enzimas de restricción, y la unión por ligasa."
+                },
+                {
+                    id: 'tema10-6',
+                    question: "¿Qué es el Western blot?",
+                    options: [
+                        "Detecta ADN",
+                        "Detecta proteínas específicas",
+                        "Amplifica ARN",
+                        "Clona genes"
+                    ],
+                    correct: 1,
+                    explanation: "El Western blot detecta proteínas específicas en una muestra separada por electroforesis, usando anticuerpos marcados. Las otras opciones son incorrectas: el ADN se detecta por Southern, el ARN por Northern, y la clonación usa vectores."
+                },
+                {
+                    id: 'tema10-7',
+                    question: "¿Qué es la hibridación Northern?",
+                    options: [
+                        "Detecta ADN",
+                        "Detecta ARN específico",
+                        "Sintetiza proteínas",
+                        "Corta ADN"
+                    ],
+                    correct: 1,
+                    explanation: "La hibridación Northern detecta ARN específico en un gel transferido a una membrana, usando sondas marcadas, útil para estudiar expresión génica. Las otras opciones son incorrectas: el ADN se detecta por Southern, no sintetiza proteínas, y el corte es por enzimas de restricción."
+                },
+                {
+                    id: 'tema10-8',
+                    question: "¿Qué es un microarray?",
+                    options: [
+                        "Un dispositivo para clonar genes",
+                        "Una técnica para analizar expresión génica masiva",
+                        "Una enzima de restricción",
+                        "Un método para degradar ARN"
+                    ],
+                    correct: 1,
+                    explanation: "Un microarray analiza la expresión de miles de genes simultáneamente usando sondas de ADN fijadas en una superficie, detectando ARNm hibridado. Las otras opciones son incorrectas: la clonación usa vectores, no es una enzima, y no degrada ARN."
+                },
+                {
+                    id: 'tema10-9',
+                    question: "¿Qué es la clonación por ligación?",
+                    options: [
+                        "Unir ADN usando enzimas de restricción",
+                        "Unir fragmentos de ADN con ADN ligasa",
+                        "Amplificar ADN con PCR",
+                        "Degradar proteínas"
+                    ],
+                    correct: 1,
+                    explanation: "La clonación por ligación une fragmentos de ADN (e.g., un inserto y un vector) usando ADN ligasa tras el corte con enzimas de restricción, creando ADN recombinante. Las otras opciones son incorrectas: las enzimas de restricción cortan, la PCR amplifica, y no degrada proteínas."
+                }
+            ],
+            tema11: [
+                {
+    id: 'tema11-0',
+    question: "¿Qué es un vector de clonación?",
+    options: [
+        "Una enzima que corta ADN",
+        "Una molécula de ADN que transporta un inserto",
+        "Una proteína de unión al ADN",
+        "Un tipo de ARN"
+    ],
+    correct: 1,
+    explanation: "Un vector de clonación (e.g., plásmido) es una molécula de ADN que transporta un fragmento de ADN insertado para clonación o expresión. Las otras opciones son incorrectas: las enzimas de restricción cortan ADN, no es una proteína de unión, y no es ARN."
+},
+{
+                    id: 'tema11-1',
+                    question: "¿Qué es la transformación bacteriana?",
+                    options: [
+                        "Corte de ADN bacteriano",
+                        "Introducción de ADN externo en bacterias",
+                        "Síntesis de ARN",
+                        "Degradación de proteínas"
+                    ],
+                    correct: 1,
+                    explanation: "La transformación bacteriana introduce ADN externo (como plásmidos) en bacterias, permitiendo clonación o expresión génica. Las otras opciones son incorrectas: el corte es por enzimas de restricción, el ARN es por transcripción, y la degradación es por el proteasoma."
+                },
+                {
+                    id: 'tema11-2',
+                    question: "¿Qué es un plásmido?",
+                    options: [
+                        "Una enzima de replicación",
+                        "Una molécula de ADN circular en bacterias",
+                        "Un tipo de ARN",
+                        "Una proteína de unión"
+                    ],
+                    correct: 1,
+                    explanation: "Un plásmido es una molécula de ADN circular de doble hebra en bacterias, usada como vector en clonación para replicar o expresar genes insertados. Las otras opciones son incorrectas: no es una enzima, no es ARN, y no es una proteína."
+                },
+                {
+                    id: 'tema11-3',
+                    question: "¿Qué es la ligación en clonación?",
+                    options: [
+                        "Cortar ADN",
+                        "Unir fragmentos de ADN con ADN ligasa",
+                        "Amplificar ADN",
+                        "Degradar ARN"
+                    ],
+                    correct: 1,
+                    explanation: "La ligación une fragmentos de ADN (como un inserto y un vector) con ADN ligasa, formando ADN recombinante para clonación. Las otras opciones son incorrectas: el corte es por enzimas de restricción, la amplificación por PCR, y no degrada ARN."
+                },
+                {
+                    id: 'tema11-4',
+                    question: "¿Qué es un gen reportero?",
+                    options: [
+                        "Un gen que codifica una enzima de restricción",
+                        "Un gen cuya expresión es fácil de detectar",
+                        "Un gen que repara ADN",
+                        "Un gen que degrada ARN"
+                    ],
+                    correct: 1,
+                    explanation: "Un gen reportero (e.g., GFP, lacZ) produce un producto fácilmente detectable (fluorescencia, color) para monitorear la expresión génica o la actividad de promotores. Las otras opciones son incorrectas: no codifica enzimas de restricción, no repara ADN, y no degrada ARN."
+                },
+                {
+                    id: 'tema11-5',
+                    question: "¿Qué es CRISPR-Cas9?",
+                    options: [
+                        "Una técnica de amplificación de ADN",
+                        "Un sistema de edición génica guiado por ARN",
+                        "Una técnica de secuenciación",
+                        "Una técnica de degradación de proteínas"
+                    ],
+                    correct: 1,
+                    explanation: "CRISPR-Cas9 es un sistema de edición génica que usa ARN guía para dirigir la nucleasa Cas9 a secuencias específicas de ADN, cortando y permitiendo modificaciones precisas. Las otras opciones son incorrectas: la amplificación es por PCR, la secuenciación por Sanger o NGS, y no degrada proteínas."
+                },
+                {
+                    id: 'tema11-6',
+                    question: "¿Qué es un origen de replicación (ori)?",
+                    options: [
+                        "Un sitio donde comienza la transcripción",
+                        "Un sitio donde comienza la replicación en un plásmido",
+                        "Un codón de parada",
+                        "Una proteína de unión"
+                    ],
+                    correct: 1,
+                    explanation: "El origen de replicación (ori) es una secuencia en un plásmido o genoma donde comienza la replicación del ADN, esencial para la clonación. Las otras opciones son incorrectas: la transcripción comienza en promotores, no es un codón, y no es una proteína."
+                },
+                {
+                    id: 'tema11-7',
+                    question: "¿Qué es una biblioteca genómica?",
+                    options: [
+                        "Una colección de ARN transcritos",
+                        "Una colección de fragmentos de ADN de un organismo",
+                        "Una colección de proteínas",
+                        "Una colección de histonas"
+                    ],
+                    correct: 1,
+                    explanation: "Una biblioteca genómica es una colección de fragmentos de ADN que representan el genoma de un organismo, clonados en vectores para estudio o expresión. Las otras opciones son incorrectas: el ARN es para bibliotecas de ADNc, no incluye proteínas ni histonas."
+                },
+                {
+                    id: 'tema11-8',
+                    question: "¿Qué es la electroporación?",
+                    options: [
+                        "Corte de ADN",
+                        "Introducción de ADN en células usando pulsos eléctricos",
+                        "Amplificación de ARN",
+                        "Degradación de proteínas"
+                    ],
+                    correct: 1,
+                    explanation: "La electroporación usa pulsos eléctricos para crear poros temporales en la membrana celular, permitiendo la entrada de ADN en clonación o transformación. Las otras opciones son incorrectas: el corte es por enzimas de restricción, el ARN no se amplifica así, y no degrada proteínas."
+                },
+                {
+                    id: 'tema11-9',
+                    question: "¿Qué es una biblioteca de ADNc?",
+                    options: [
+                        "Una colección de ADN genómico",
+                        "Una colección de ADN complementario derivado de ARNm",
+                        "Una colección de histonas",
+                        "Una colección de enzimas"
+                    ],
+                    correct: 1,
+                    explanation: "Una biblioteca de ADNc contiene ADN complementario sintetizado a partir de ARNm mediante transcriptasa inversa, representando genes expresados. Las otras opciones son incorrectas: el ADN genómico es para bibliotecas genómicas, no incluye histonas ni enzimas."
+                }
+            ],
+            tema12: [
+                {
+                    id: 'tema12-0',
+                    question: "¿Qué es un vector de expresión?",
+                    options: [
+                        "Una enzima de corte",
+                        "Un vector que permite la expresión de un gen insertado",
+                        "Un tipo de ARN",
+                        "Una proteína de unión"
+                    ],
+                    correct: 1,
+                    explanation: "Un vector de expresión (e.g., plásmido con un promotor fuerte) permite la transcripción y traducción de un gen insertado para producir una proteína. Las otras opciones son incorrectas: las enzimas de corte son de restricción, no es ARN, y no es una proteína."
+                },
+                {
+                    id: 'tema12-1',
+                    question: "¿Qué es la transformación en eucariotas?",
+                    options: [
+                        "Corte de ADN",
+                        "Introducción de ADN exógeno en células eucariotas",
+                        "Síntesis de ARN",
+                        "Degradación de proteínas"
+                    ],
+                    correct: 1,
+                    explanation: "La transformación en eucariotas introduce ADN exógeno (e.g., mediante electroporación o lipofectina) para modificar o estudiar genes. Las otras opciones son incorrectas: el corte es por enzimas de restricción, el ARN es por transcripción, y la degradación es por el proteasoma."
+                },
+                {
+                    id: 'tema12-2',
+                    question: "¿Qué es un marcador seleccionable en un vector?",
+                    options: [
+                        "Un gen que permite identificar células transformadas",
+                        "Una enzima de replicación",
+                        "Un codón de parada",
+                        "Un factor de transcripción"
+                    ],
+                    correct: 0,
+                    explanation: "Un marcador seleccionable (e.g., resistencia a antibióticos) permite identificar células que han incorporado el vector, como aquellas que crecen en medio con antibióticos. Las otras opciones son incorrectas: no es una enzima, no es un codón, y no es un factor de transcripción."
+                },
+                {
+                    id: 'tema12-3',
+                    question: "¿Qué es un plásmido de alto número de copias?",
+                    options: [
+                        "Un plásmido que se replica pocas veces",
+                        "Un plásmido que produce muchas copias por célula",
+                        "Un plásmido que no se replica",
+                        "Un plásmido que degrada ADN"
+                    ],
+                    correct: 1,
+                    explanation: "Un plásmido de alto número de copias (e.g., pUC) produce muchas copias por célula debido a un origen de replicación relajado, útil para clonación. Las otras opciones son incorrectas: no es de bajo número, no deja de replicarse, y no degrada ADN."
+                },
+                {
+                    id: 'tema12-4',
+                    question: "¿Qué es la transfección?",
+                    options: [
+                        "Corte de ADN",
+                        "Introducción de ADN en células eucariotas mediante métodos químicos o físicos",
+                        "Amplificación de ARN",
+                        "Degradación de proteínas"
+                    ],
+                    correct: 1,
+                    explanation: "La transfección introduce ADN en células eucariotas usando métodos como lipofectina, electroporación o partículas de oro, para expresión o estudio génico. Las otras opciones son incorrectas: el corte es por enzimas de restricción, el ARN no se amplifica así, y no degrada proteínas."
+                },
+                {
+                    id: 'tema12-5',
+                    question: "¿Qué es un vector viral?",
+                    options: [
+                        "Un virus que infecta células sin ADN",
+                        "Un virus modificado para llevar ADN exógeno",
+                        "Una enzima de corte",
+                        "Un tipo de ARN"
+                    ],
+                    correct: 1,
+                    explanation: "Un vector viral (e.g., retrovirus, adenovirus) es un virus modificado para llevar ADN exógeno a células, usado en terapia génica o clonación. Las otras opciones son incorrectas: los virus llevan ADN o ARN, no son enzimas, y no son ARN puro."
+                },
+                {
+                    id: 'tema12-6',
+                    question: "¿Qué es la selección positiva en clonación?",
+                    options: [
+                        "Eliminar células transformadas",
+                        "Seleccionar células que contienen el vector",
+                        "Degradar ADN",
+                        "Sintetizar ARN"
+                    ],
+                    correct: 1,
+                    explanation: "La selección positiva usa marcadores (e.g., resistencia a antibióticos) para identificar células que han incorporado el vector, permitiendo su crecimiento en medios selectivos. Las otras opciones son incorrectas: no elimina células transformadas, no degrada ADN, y no sintetiza ARN."
+                },
+                {
+                    id: 'tema12-7',
+                    question: "¿Qué es un sitio de clonación múltiple (MCS)?",
+                    options: [
+                        "Un sitio donde se une el ARN",
+                        "Una región con múltiples sitios de restricción",
+                        "Un codón de parada",
+                        "Una proteína de unión"
+                    ],
+                    correct: 1,
+                    explanation: "El sitio de clonación múltiple (MCS) es una región en un vector con múltiples sitios de reconocimiento para enzimas de restricción, facilitando la inserción de ADN. Las otras opciones son incorrectas: no une ARN, no es un codón, y no es una proteína."
+                },
+                {
+                    id: 'tema12-8',
+                    question: "¿Qué es la transformación por choque térmico?",
+                    options: [
+                        "Corte de ADN",
+                        "Introducción de ADN en bacterias mediante cambios de temperatura",
+                        "Amplificación de ARN",
+                        "Degradación de proteínas"
+                    ],
+                    correct: 1,
+                    explanation: "La transformación por choque térmico introduce ADN en bacterias (e.g., E. coli) al alternar temperaturas (0°C a 42°C), aumentando la permeabilidad de la membrana. Las otras opciones son incorrectas: el corte es por enzimas de restricción, el ARN no se amplifica así, y no degrada proteínas."
+                },
+                {
+                    id: 'tema12-9',
+                    question: "¿Qué es un vector de lanzadera?",
+                    options: [
+                        "Un vector que solo funciona en procariotas",
+                        "Un vector que funciona en procariotas y eucariotas",
+                        "Una enzima de replicación",
+                        "Un tipo de ARN"
+                    ],
+                    correct: 1,
+                    explanation: "Un vector de lanzadera contiene orígenes de replicación para procariotas y eucariotas, permitiendo su uso en ambos sistemas (e.g., clonación en bacterias y expresión en levaduras). Las otras opciones son incorrectas: no está limitado a procariotas, no es una enzima, y no es ARN."
+                }
+            ]
+        };
+
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let totalQuestions = 0;
+        let gameHistory = JSON.parse(localStorage.getItem('gameHistory')) || [];
+        let questionPerformance = JSON.parse(localStorage.getItem('questionPerformance')) || {};
+
+        function showTab(tabId) {
+            document.querySelectorAll('#start-menu, #quiz, #history').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(tabId).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`.nav-btn[onclick="showTab('${tabId}')"]`).classList.add('active');
+            if (tabId === 'history') {
+                displayHistory();
+                displayQuestionPerformance();
+            }
+        }
+
+        function startQuiz(topic) {
+            currentQuestions = [...questionsByTopic[topic]];
+            currentQuestions.sort(() => Math.random() - 0.5); // Barajar preguntas
+            currentQuestions = currentQuestions.slice(0, 10); // Seleccionar 10 preguntas
+            currentQuestionIndex = 0;
+            score = 0;
+            totalQuestions = currentQuestions.length;
+            showTab('quiz');
+            displayQuestion();
+            updateScore();
+            document.getElementById('study-tips').style.display = 'none';
+            document.getElementById('reset-quiz-btn').style.display = 'none';
+        }
+
+        function startSimulacroQuiz() {
+            // Seleccionar 8 "hot questions" (preguntas con <70% de aciertos o nunca respondidas)
+            let hotQuestions = [];
+            Object.keys(questionPerformance).forEach(qid => {
+                const perf = questionPerformance[qid];
+                const total = perf.correct + perf.incorrect;
+                if (total === 0 || (perf.correct / total) < 0.7) {
+                    Object.values(questionsByTopic).flat().forEach(q => {
+                        if (q.id === qid) hotQuestions.push(q);
+                    });
+                }
+            });
+            hotQuestions.sort(() => Math.random() - 0.5);
+            hotQuestions = hotQuestions.slice(0, 8);
+
+            // Completar con 2 preguntas aleatorias si faltan
+            let allQuestions = Object.values(questionsByTopic).flat();
+            while (hotQuestions.length < 10) {
+                const randomQ = allQuestions[Math.floor(Math.random() * allQuestions.length)];
+                if (!hotQuestions.includes(randomQ)) hotQuestions.push(randomQ);
+            }
+
+            currentQuestions = hotQuestions.slice(0, 10);
+            currentQuestionIndex = 0;
+            score = 0;
+            totalQuestions = 10;
+            showTab('quiz');
+            displayQuestion();
+            updateScore();
+            document.getElementById('study-tips').style.display = 'none';
+            document.getElementById('reset-quiz-btn').style.display = 'none';
+        }
+
+        function displayQuestion() {
+            if (currentQuestionIndex >= currentQuestions.length) {
+                endQuiz();
+                return;
+            }
+            const question = currentQuestions[currentQuestionIndex];
+            document.getElementById('question').textContent = question.question;
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+            const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
+            shuffledOptions.forEach((option, index) => {
+                const btn = document.createElement('button');
+                btn.classList.add('option');
+                btn.textContent = option;
+                btn.onclick = () => checkAnswer(index, question.options.indexOf(option));
+                optionsDiv.appendChild(btn);
+            });
+            document.getElementById('feedback').textContent = '';
+            document.getElementById('next-btn').style.display = 'none';
+        }
+
+        function checkAnswer(selectedIndex, originalIndex) {
+            const question = currentQuestions[currentQuestionIndex];
+            const feedback = document.getElementById('feedback');
+            if (originalIndex === question.correct) {
+                feedback.textContent = '¡Correcto! ' + question.explanation;
+                feedback.classList.remove('incorrect');
+                feedback.classList.add('correct');
+                score++;
+                updateQuestionPerformance(question.id, true);
+            } else {
+                feedback.textContent = 'Incorrecto. ' + question.explanation;
+                feedback.classList.remove('correct');
+                feedback.classList.add('incorrect');
+                updateQuestionPerformance(question.id, false);
+            }
+            updateScore();
+            document.getElementById('next-btn').style.display = 'block';
+            document.querySelectorAll('.option').forEach(btn => btn.disabled = true);
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = `Puntuación: ${score} / ${totalQuestions}`;
+        }
+
+        function updateQuestionPerformance(qid, isCorrect) {
+            if (!questionPerformance[qid]) {
+                questionPerformance[qid] = { correct: 0, incorrect: 0 };
+            }
+            if (isCorrect) {
+                questionPerformance[qid].correct++;
+            } else {
+                questionPerformance[qid].incorrect++;
+            }
+            localStorage.setItem('questionPerformance', JSON.stringify(questionPerformance));
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            displayQuestion();
+        }
+
+        function endQuiz() {
+            document.getElementById('question').textContent = '¡Examen terminado!';
+            document.getElementById('options').innerHTML = '';
+            const feedback = document.getElementById('feedback');
+            feedback.classList.remove('correct', 'incorrect');
+            feedback.textContent = `Has terminado el examen con ${score} de ${totalQuestions} aciertos.`;
+            if (score >= 8) {
+                feedback.textContent += ' ¡Felicidades! Has acertado 8 o más preguntas.';
+                feedback.classList.add('correct');
+            }
+            document.getElementById('next-btn').style.display = 'none';
+            document.getElementById('restart-btn').style.display = 'block';
+            document.getElementById('reset-quiz-btn').style.display = 'block';
+            saveGameHistory();
+            displayStudyTips();
+        }
+
+        function saveGameHistory() {
+            const topic = currentQuestions[0].id.split('-')[0];
+            const date = new Date().toLocaleString();
+            const percentage = ((score / totalQuestions) * 100).toFixed(2);
+            gameHistory.push({ date, topic, score, total: totalQuestions, percentage });
+            localStorage.setItem('gameHistory', JSON.stringify(gameHistory));
+        }
+
+        function displayHistory() {
+            const historyBody = document.getElementById('game-history-body');
+            historyBody.innerHTML = '';
+            gameHistory.forEach(record => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${record.date}</td>
+                    <td>${record.topic}</td>
+                    <td>${record.score}</td>
+                    <td>${record.total}</td>
+                    <td>${record.percentage}%</td>
+                `;
+                historyBody.appendChild(row);
+            });
+        }
+
+        function displayQuestionPerformance() {
+            const perfBody = document.getElementById('question-performance-body');
+            perfBody.innerHTML = '';
+            Object.keys(questionPerformance).forEach(qid => {
+                const perf = questionPerformance[qid];
+                const total = perf.correct + perf.incorrect;
+                const percentage = total > 0 ? ((perf.correct / total) * 100).toFixed(2) : 0;
+                const questionText = Object.values(questionsByTopic).flat().find(q => q.id === qid)?.question || qid;
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${questionText}</td>
+                    <td>${perf.correct}</td>
+                    <td>${perf.incorrect}</td>
+                    <td>${percentage}%</td>
+                `;
+                perfBody.appendChild(row);
+            });
+        }
+
+        function displayStudyTips() {
+            const tipsDiv = document.getElementById('study-tips');
+            tipsDiv.innerHTML = '<h3>Consejos de Estudio</h3>';
+            let tips = [];
+
+            // Analizar temas con <70% de aciertos
+            const topicScores = {};
+            gameHistory.forEach(record => {
+                if (!topicScores[record.topic]) {
+                    topicScores[record.topic] = { total: 0, correct: 0, count: 0 };
+                }
+                topicScores[record.topic].total += record.total;
+                topicScores[record.topic].correct += record.score;
+                topicScores[record.topic].count++;
+            });
+            Object.keys(topicScores).forEach(topic => {
+                const avg = topicScores[topic].correct / topicScores[topic].total * 100;
+                if (avg < 70) {
+                    tips.push(`Considera repasar ${topic}, tu promedio es ${avg.toFixed(2)}%.`);
+                }
+            });
+
+            // Analizar preguntas con más fallos que aciertos
+            Object.keys(questionPerformance).forEach(qid => {
+                const perf = questionPerformance[qid];
+                if (perf.incorrect > perf.correct) {
+                    const questionText = Object.values(questionsByTopic).flat().find(q => q.id === qid)?.question || qid;
+                    tips.push(`Enfócate en "${questionText}" (fallaste ${perf.incorrect} veces).`);
+                }
+            });
+
+            if (tips.length === 0) {
+                tips.push('¡Buen trabajo! No hay áreas específicas que necesiten repaso urgente.');
+            }
+            tipsDiv.innerHTML += tips.map(tip => `<p>${tip}</p>`).join('');
+            tipsDiv.style.display = 'block';
+        }
+
+        function resetHistory() {
+            gameHistory = [];
+            questionPerformance = {};
+            localStorage.setItem('gameHistory', JSON.stringify(gameHistory));
+            localStorage.setItem('questionPerformance', JSON.stringify(questionPerformance));
+            displayHistory();
+            displayQuestionPerformance();
+        }
+
+        function resetQuizData() {
+            gameHistory = [];
+            questionPerformance = {};
+            localStorage.setItem('gameHistory', JSON.stringify(gameHistory));
+            localStorage.setItem('questionPerformance', JSON.stringify(questionPerformance));
+            showTab('start-menu');
+            document.getElementById('quiz').innerHTML = `
+                <div id="score">Puntuación: 0 / 0</div>
+                <div id="question"></div>
+                <div id="options"></div>
+                <div id="feedback"></div>
+                <div id="study-tips" style="display: none;"></div>
+                <button id="next-btn" style="display: none;">Siguiente Pregunta</button>
+                <button id="restart-btn" style="display: none;">Jugar de Nuevo</button>
+                <button id="reset-quiz-btn" style="display: none;">Resetear Datos del Cuestionario</button>
+            `;
+            document.getElementById('next-btn').onclick = nextQuestion;
+            document.getElementById('restart-btn').onclick = () => showTab('start-menu');
+            document.getElementById('reset-quiz-btn').onclick = resetQuizData;
+        }
+
+        document.getElementById('next-btn').onclick = nextQuestion;
+        document.getElementById('restart-btn').onclick = () => showTab('start-menu');
+        document.getElementById('reset-history-btn').onclick = resetHistory;
+        document.getElementById('reset-quiz-btn').onclick = resetQuizData;
