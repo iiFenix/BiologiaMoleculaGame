@@ -141,7 +141,7 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            margin: 10px 0;
+            margin: 10px 5px;
             font-size: 16px;
             transition: background-color 0.3s ease;
         }
@@ -171,12 +171,41 @@
             font-size: 20px;
             margin-right: 10px;
         }
+        .option {
+            display: block;
+            background-color: #f9f9f9;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .option:hover {
+            background-color: #e0e0e0;
+        }
+        .option.selected {
+            background-color: #d1e2ff;
+        }
+        .special-question {
+            background-color: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #result-container {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        #advice-container {
+            margin-top: 20px;
+            color: #555;
+        }
     </style>
 </head>
 <body>
     <nav>
         <a href="#" onclick="showSection('home')" class="active">Inicio</a>
         <a href="#" onclick="showSection('quiz')">Cuestionarios</a>
+        <a href="#" onclick="showSection('test')">Test</a>
         <a href="#" onclick="showSection('history')">Historial</a>
     </nav>
 
@@ -207,6 +236,17 @@
                 </div>
             </div>
             <div class="simulacro" onclick="startQuiz('simulacro')"><span class="simulacro-icon"></span>Simulacro Examen</div>
+        </div>
+
+        <div id="test" class="section" style="display: none;">
+            <h2 id="test-title">Cuestionario</h2>
+            <div id="question-container"></div>
+            <div id="options-container"></div>
+            <button onclick="checkAnswer()">Enviar Respuesta</button>
+            <button onclick="nextQuestion()">Siguiente Pregunta</button>
+            <button onclick="endQuiz()">Reiniciar Cuestionario</button>
+            <div id="result-container"></div>
+            <div id="advice-container"></div>
         </div>
 
         <div id="history" class="section" style="display: none;">
@@ -1023,8 +1063,12 @@
                 alert('Error: No hay preguntas disponibles para este tema.');
                 return;
             }
-            // Aquí se puede añadir una lógica futura para manejar cuestionarios
-            alert(`Has seleccionado el tema: ${theme}. La funcionalidad de cuestionarios está en desarrollo.`);
+            currentQuestionIndex = 0;
+            score = 0;
+            totalQuestionsAnswered = 0;
+            showSection('test');
+            document.getElementById('test-title').innerText = `Cuestionario: ${theme}`;
+            showQuestion();
         }
 
         function shuffleArray(array) {
@@ -1033,6 +1077,109 @@
                 [array[i], array[j]] = [array[j], array[i]];
             }
             return array;
+        }
+
+        function showQuestion() {
+            if (currentQuestionIndex >= currentQuestions.length) {
+                endQuiz();
+                return;
+            }
+            const question = currentQuestions[currentQuestionIndex];
+            const questionContainer = document.getElementById('question-container');
+            const optionsContainer = document.getElementById('options-container');
+            const resultContainer = document.getElementById('result-container');
+            const adviceContainer = document.getElementById('advice-container');
+
+            questionContainer.innerHTML = `<p${question.special ? ' class="special-question"' : ''}>${question.text}</p>`;
+            optionsContainer.innerHTML = '';
+            resultContainer.innerHTML = '';
+            adviceContainer.innerHTML = '';
+            selectedOption = null;
+
+            question.options.forEach((option, index) => {
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'option';
+                optionDiv.innerText = option.text;
+                optionDiv.onclick = () => selectOption(index);
+                optionsContainer.appendChild(optionDiv);
+            });
+        }
+
+        function selectOption(index) {
+            selectedOption = index;
+            document.querySelectorAll('.option').forEach((option, i) => {
+                option.classList.toggle('selected', i === index);
+            });
+        }
+
+        function checkAnswer() {
+            if (selectedOption === null) {
+                alert('Por favor, selecciona una opción.');
+                return;
+            }
+            const question = currentQuestions[currentQuestionIndex];
+            const isCorrect = question.options[selectedOption].correct;
+            const resultContainer = document.getElementById('result-container');
+            const adviceContainer = document.getElementById('advice-container');
+
+            if (isCorrect) {
+                score++;
+                resultContainer.innerHTML = '¡Correcto!';
+            } else {
+                resultContainer.innerHTML = 'Incorrecto. La respuesta correcta es: ' + question.options.find(opt => opt.correct).text;
+            }
+            totalQuestionsAnswered++;
+
+            const questionKey = `${currentTheme} - Pregunta ${question.id}`;
+            if (!questionPerformance[questionKey]) {
+                questionPerformance[questionKey] = { correct: 0, incorrect: 0 };
+            }
+            questionPerformance[questionKey][isCorrect ? 'correct' : 'incorrect']++;
+            localStorage.setItem('questionPerformance', JSON.stringify(questionPerformance));
+
+            showAdvice();
+        }
+
+        function showAdvice() {
+            const adviceContainer = document.getElementById('advice-container');
+            const question = currentQuestions[currentQuestionIndex];
+            const questionKey = `${currentTheme} - Pregunta ${question.id}`;
+            const perf = questionPerformance[questionKey] || { correct: 0, incorrect: 0 };
+            const total = perf.correct + perf.incorrect;
+            const percentage = total > 0 ? ((perf.correct / total) * 100).toFixed(2) : 0;
+
+            if (percentage < 50 && total >= 3) {
+                adviceContainer.innerHTML = `Consejo: Parece que esta pregunta te está costando (acierto: ${percentage}%). Revisa el tema "${currentTheme}" para reforzar este concepto.`;
+            } else if (question.special) {
+                adviceContainer.innerHTML = '¡Pregunta clave! Asegúrate de dominar este concepto, ya que es fundamental.';
+            } else {
+                adviceContainer.innerHTML = 'Sigue practicando para consolidar tus conocimientos.';
+            }
+        }
+
+        function nextQuestion() {
+            if (selectedOption === null) {
+                alert('Por favor, responde la pregunta antes de continuar.');
+                return;
+            }
+            currentQuestionIndex++;
+            showQuestion();
+        }
+
+        function endQuiz() {
+            const percentage = (score / totalQuestionsAnswered) * 100;
+            gameHistory.push({
+                date: new Date().toLocaleString(),
+                theme: currentTheme,
+                score: score,
+                total: totalQuestionsAnswered,
+                percentage: percentage.toFixed(2)
+            });
+            localStorage.setItem('gameHistory', JSON.stringify(gameHistory));
+            updateHistory();
+            updateQuestionPerformance();
+            showSection('quiz');
+            alert(`Cuestionario finalizado. Puntuación: ${score}/${totalQuestionsAnswered} (${percentage.toFixed(2)}%)`);
         }
 
         function resetHistory() {
