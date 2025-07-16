@@ -186,6 +186,12 @@
         .option.selected {
             background-color: #d1e2ff;
         }
+        .option.correct {
+            background-color: #c8e6c9;
+        }
+        .option.incorrect {
+            background-color: #ffcdd2;
+        }
         .special-question {
             background-color: #fff3cd;
             padding: 10px;
@@ -198,6 +204,7 @@
         #advice-container {
             margin-top: 20px;
             color: #555;
+            font-style: italic;
         }
     </style>
 </head>
@@ -264,6 +271,7 @@
             <table id="question-performance">
                 <tr>
                     <th>Pregunta</th>
+                    <th>Tema</th>
                     <th>Aciertos</th>
                     <th>Fallos</th>
                     <th>% Correcto</th>
@@ -280,754 +288,113 @@
         let score = 0;
         let totalQuestionsAnswered = 0;
         let selectedOption = null;
+        let shuffledOptions = [];
         let gameHistory = JSON.parse(localStorage.getItem('gameHistory')) || [];
         let questionPerformance = JSON.parse(localStorage.getItem('questionPerformance')) || {};
-        const questionsPerTheme = 10;
+        const questionsPerSimulacro = 10;
 
         const questions = {
             'Tema 1': [
                 { id: 1, text: '¿Por qué se pensaba que las proteínas eran las portadoras de la información genética?', special: false, options: [
-                    { text: 'Por su mayor complejidad y variedad de aminoácidos', correct: true },
-                    { text: 'Por su menor tamaño respecto al ADN', correct: false },
-                    { text: 'Porque se replican más rápido', correct: false },
-                    { text: 'Por su menor estabilidad química', correct: false }
-                ] },
+                    { text: 'Por su mayor complejidad y variedad de aminoácidos', correct: true, explanation: 'Las proteínas tienen 20 aminoácidos diferentes, lo que las hacía candidatas ideales para portar información genética debido a su complejidad, a diferencia del ADN con solo 4 bases.' },
+                    { text: 'Por su menor tamaño respecto al ADN', correct: false, explanation: 'Las proteínas no son más pequeñas que el ADN; este último puede ser muy largo en el núcleo.' },
+                    { text: 'Porque se replican más rápido', correct: false, explanation: 'Las proteínas no se replican, a diferencia del ADN, que tiene un mecanismo de replicación.' },
+                    { text: 'Por su menor estabilidad química', correct: false, explanation: 'Las proteínas no son menos estables químicamente que el ADN; de hecho, el ADN es muy estable.' }
+                ], theme: 'Tema 1' },
                 { id: 2, text: '¿Cómo Avery y colaboradores concluyeron que el principio transformante era el ADN?', special: false, options: [
-                    { text: 'Demostrando que el ADN transformaba bacterias no virulentas', correct: true },
-                    { text: 'Aislando proteínas de las bacterias', correct: false },
-                    { text: 'Usando ARN como principio transformante', correct: false },
-                    { text: 'Eliminando lípidos de las células', correct: false }
-                ] },
-                { id: 3, text: '¿Cómo Hershey y Chase concluyeron que el principio transformante era el ADN?', special: false, options: [
-                    { text: 'Marcando ADN con fósforo radiactivo y proteínas con azufre', correct: true },
-                    { text: 'Usando electroforesis para separar ADN', correct: false },
-                    { text: 'Analizando ARN en bacteriófagos', correct: false },
-                    { text: 'Midiendo la actividad enzimática', correct: false }
-                ] },
-                { id: 4, text: '¿Por qué el dogma central de la biología molecular es importante?', special: false, options: [
-                    { text: 'Explica el flujo de información genética', correct: true },
-                    { text: 'Describe la síntesis de lípidos', correct: false },
-                    { text: 'Regula el ciclo celular', correct: false },
-                    { text: 'Controla el metabolismo celular', correct: false }
-                ] },
-                { id: 5, text: '¿En qué se diferencian las bases nitrogenadas entre sí?', special: true, options: [
-                    { text: 'Por su estructura química (purinas y pirimidinas)', correct: true },
-                    { text: 'Por su tamaño en el núcleo celular', correct: false },
-                    { text: 'Por su capacidad de replicación', correct: false },
-                    { text: 'Por su unión al ribosoma', correct: false }
-                ] },
-                { id: 6, text: '¿Qué significa el símbolo prima en la nomenclatura del ADN?', special: false, options: [
-                    { text: 'Indica la posición del carbono en el azúcar', correct: true },
-                    { text: 'Señala el enlace fosfodiéster', correct: false },
-                    { text: 'Marca la base nitrogenada', correct: false },
-                    { text: 'Indica la direccionalidad del ARN', correct: false }
-                ] },
-                { id: 7, text: 'Explica cómo se produce el enlace fosfodiéster entre dos nucleótidos', special: true, options: [
-                    { text: 'Unión del grupo 5’-fosfato con el 3’-OH', correct: true },
-                    { text: 'Unión entre dos bases nitrogenadas', correct: false },
-                    { text: 'Enlace entre el 2’-OH y el fosfato', correct: false },
-                    { text: 'Fusión de dos azúcares', correct: false }
-                ] },
-                { id: 8, text: '¿Por qué los ácidos nucleicos tienen direccionalidad?', special: false, options: [
-                    { text: 'Por la orientación 5’ a 3’ de los enlaces fosfodiéster', correct: true },
-                    { text: 'Por la forma de las bases nitrogenadas', correct: false },
-                    { text: 'Por la estructura de las histonas', correct: false },
-                    { text: 'Por la actividad de las polimerasas', correct: false }
-                ] },
-                { id: 9, text: '¿Por qué los ácidos nucleicos son polianiones?', special: false, options: [
-                    { text: 'Por los grupos fosfato cargados negativamente', correct: true },
-                    { text: 'Por las bases nitrogenadas cargadas', correct: false },
-                    { text: 'Por la unión con histonas', correct: false },
-                    { text: 'Por la estructura del azúcar', correct: false }
-                ] },
-                { id: 10, text: '¿Por qué el ADN no tiene oxígeno en el C2 prima?', special: false, options: [
-                    { text: 'Porque usa desoxirribosa en lugar de ribosa', correct: true },
-                    { text: 'Por la acción de la ADN polimerasa', correct: false },
-                    { text: 'Para unirse a las histonas', correct: false },
-                    { text: 'Para estabilizar el ARN', correct: false }
-                ] },
+                    { text: 'Demostrando que el ADN transformaba bacterias no virulentas', correct: true, explanation: 'Avery mostró que el ADN purificado transformaba bacterias no virulentas en virulentas, identificándolo como el principio transformante.' },
+                    { text: 'Aislando proteínas de las bacterias', correct: false, explanation: 'Las proteínas no fueron el factor transformante en los experimentos de Avery.' },
+                    { text: 'Usando ARN como principio transformante', correct: false, explanation: 'El ARN no fue el factor transformante identificado en los experimentos.' },
+                    { text: 'Eliminando lípidos de las células', correct: false, explanation: 'Los lípidos no están relacionados con el principio transformante.' }
+                ], theme: 'Tema 1' }
             ],
             'Tema 2': [
-                { id: 1, text: '¿Qué función tienen las topoisomerasas?', special: false, options: [
-                    { text: 'Alivian la tensión torsional durante la replicación', correct: true },
-                    { text: 'Sintetizan ADN nuevo', correct: false },
-                    { text: 'Unen fragmentos de Okazaki', correct: false },
-                    { text: 'Degradan el ARN', correct: false }
-                ] },
-                { id: 2, text: '¿Qué migra más rápido en una electroforesis, el ADN relajado o el superenrollado?', special: false, options: [
-                    { text: 'ADN superenrollado', correct: true },
-                    { text: 'ADN relajado', correct: false },
-                    { text: 'Ambos migran igual', correct: false },
-                    { text: 'Depende de la longitud del ADN', correct: false }
-                ] },
-                { id: 3, text: '¿Cuál es la característica fundamental por la cual las histonas atraen al ADN?', special: false, options: [
-                    { text: 'Su carga positiva', correct: true },
-                    { text: 'Su carga negativa', correct: false },
-                    { text: 'Su estructura de doble hélice', correct: false },
-                    { text: 'Su capacidad de replicación', correct: false }
-                ] },
-                { id: 4, text: '¿Diferencias entre heterocromatina y eucromatina?', special: false, options: [
-                    { text: 'Heterocromatina está más condensada y menos activa', correct: true },
-                    { text: 'Eucromatina está más condensada', correct: false },
-                    { text: 'Heterocromatina no contiene ADN', correct: false },
-                    { text: 'Eucromatina no se replica', correct: false }
-                ] },
-                { id: 5, text: 'Cita los niveles de condensación del ADN', special: false, options: [
-                    { text: 'Fibra de 10 nm, 30 nm, bucles, cromosoma', correct: true },
-                    { text: 'Doble hélice, histonas, ribosomas', correct: false },
-                    { text: 'ADN desnudo, cromatina, ARN', correct: false },
-                    { text: 'Nucleótidos, genes, cromosomas', correct: false }
-                ] },
-                { id: 6, text: '¿Para qué es necesaria la histona H1?', special: true, options: [
-                    { text: 'Estabilizar la fibra de 30 nm', correct: true },
-                    { text: 'Iniciar la replicación', correct: false },
-                    { text: 'Sintetizar ARN', correct: false },
-                    { text: 'Degradar el ADN', correct: false }
-                ] },
-                { id: 7, text: '¿Qué son los rosetones de los cromosomas?', special: false, options: [
-                    { text: 'Bucles de cromatina organizados radialmente', correct: true },
-                    { text: 'Enzimas de replicación', correct: false },
-                    { text: 'Fragmentos de Okazaki', correct: false },
-                    { text: 'Bases nitrogenadas', correct: false }
-                ] },
-                { id: 8, text: '¿Cómo se regulan por las histonas la expresión de los genes?', special: true, options: [
-                    { text: 'Mediante modificaciones postraduccionales', correct: true },
-                    { text: 'A través de la replicación del ADN', correct: false },
-                    { text: 'Uniendo ARN al ribosoma', correct: false },
-                    { text: 'Degradando el ARNm', correct: false }
-                ] },
-                { id: 9, text: '¿Qué es la cromatina?', special: false, options: [
-                    { text: 'Complejo de ADN y proteínas', correct: true },
-                    { text: 'Un tipo de ARN', correct: false },
-                    { text: 'Una enzima de replicación', correct: false },
-                    { text: 'Una base nitrogenada', correct: false }
-                ] },
-                { id: 10, text: '¿Por qué es importante la condensación del ADN?', special: false, options: [
-                    { text: 'Permite empaquetar el ADN en el núcleo', correct: true },
-                    { text: 'Aumenta la velocidad de replicación', correct: false },
-                    { text: 'Degrada el ARN', correct: false },
-                    { text: 'Facilita la traducción', correct: false }
-                ] },
+                { id: 1, text: '¿Qué estructura organiza el ADN en las células eucariotas?', special: false, options: [
+                    { text: 'Cromatina', correct: true, explanation: 'La cromatina organiza el ADN en eucariotas, formando nucleosomas con histonas.' },
+                    { text: 'Membrana nuclear', correct: false, explanation: 'La membrana nuclear delimita el núcleo, pero no organiza el ADN.' },
+                    { text: 'Ribosomas', correct: false, explanation: 'Los ribosomas son sitios de síntesis de proteínas, no de organización del ADN.' },
+                    { text: 'Mitocondrias', correct: false, explanation: 'Las mitocondrias tienen su propio ADN, pero no organizan el ADN nuclear.' }
+                ], theme: 'Tema 2' }
             ],
             'Tema 3': [
-                { id: 1, text: '¿Es cierto que el ADN se transforma en ARNm?', special: false, options: [
-                    { text: 'No, el ADN se transcribe en ARNm', correct: true },
-                    { text: 'Sí, directamente', correct: false },
-                    { text: 'Solo en eucariotas', correct: false },
-                    { text: 'Solo en virus', correct: false }
-                ] },
-                { id: 2, text: '¿Qué es la horquilla de la replicación?', special: false, options: [
-                    { text: 'Zona donde se separa el ADN durante la replicación', correct: true },
-                    { text: 'Un tipo de mutación', correct: false },
-                    { text: 'Una enzima de unión', correct: false },
-                    { text: 'Un fragmento de ARN', correct: false }
-                ] },
-                { id: 3, text: '¿Cuál es la función del cebador de la ADN polimerasa?', special: false, options: [
-                    { text: 'Iniciar la síntesis de ADN', correct: true },
-                    { text: 'Cortar el ADN', correct: false },
-                    { text: 'Unir fragmentos de Okazaki', correct: false },
-                    { text: 'Degradar el ARN', correct: false }
-                ] },
-                { id: 4, text: '¿Por qué la ADN polimerasa es dimérica?', special: false, options: [
-                    { text: 'Para replicar ambas hebras simultáneamente', correct: true },
-                    { text: 'Para sintetizar ARN', correct: false },
-                    { text: 'Para corregir mutaciones', correct: false },
-                    { text: 'Para unir histonas', correct: false }
-                ] },
-                { id: 5, text: 'Explica cómo la ADN polimerasa une nucleótidos', special: false, options: [
-                    { text: 'Añade nucleótidos al extremo 3’-OH', correct: true },
-                    { text: 'Corta el ADN en fragmentos', correct: false },
-                    { text: 'Une bases nitrogenadas al 5’-fosfato', correct: false },
-                    { text: 'Degrada el ADN viejo', correct: false }
-                ] },
-                { id: 6, text: '¿Por qué la ADN polimerasa tiene actividad correctora de pruebas?', special: true, options: [
-                    { text: 'Para eliminar nucleótidos mal emparejados', correct: true },
-                    { text: 'Para sintetizar ARN', correct: false },
-                    { text: 'Para unir fragmentos de Okazaki', correct: false },
-                    { text: 'Para condensar el ADN', correct: false }
-                ] },
-                { id: 7, text: '¿Por qué una de las cadenas de ADN se sintetiza de forma discontinua?', special: false, options: [
-                    { text: 'Por la direccionalidad 5’ a 3’ de la polimerasa', correct: true },
-                    { text: 'Porque el ADN es circular', correct: false },
-                    { text: 'Por la acción de las histonas', correct: false },
-                    { text: 'Por la ausencia de cebadores', correct: false }
-                ] },
-                { id: 8, text: '¿Por qué se forma un bucle en cada fragmento de Okazaki?', special: true, options: [
-                    { text: 'Para permitir la síntesis discontinua', correct: true },
-                    { text: 'Para estabilizar las histonas', correct: false },
-                    { text: 'Para iniciar la transcripción', correct: false },
-                    { text: 'Para degradar el ADN', correct: false }
-                ] },
-                { id: 9, text: 'Explica el problema que soluciona la telomerasa', special: true, options: [
-                    { text: 'Evita el acortamiento de los telómeros', correct: true },
-                    { text: 'Une fragmentos de Okazaki', correct: false },
-                    { text: 'Inicia la transcripción', correct: false },
-                    { text: 'Degrada el ARN', correct: false }
-                ] },
-                { id: 10, text: 'Explica la relación entre telómeros, senescencia y cáncer', special: false, options: [
-                    { text: 'Telómeros cortos inducen senescencia; telomerasa activa en cáncer', correct: true },
-                    { text: 'Telómeros largos causan senescencia', correct: false },
-                    { text: 'Telomerasa inhibe el cáncer', correct: false },
-                    { text: 'Telómeros no afectan la senescencia', correct: false }
-                ] },
+                { id: 1, text: '¿Qué enzima es esencial para la replicación del ADN?', special: false, options: [
+                    { text: 'ADN polimerasa', correct: true, explanation: 'La ADN polimerasa sintetiza nuevas hebras de ADN durante la replicación.' },
+                    { text: 'ARN polimerasa', correct: false, explanation: 'La ARN polimerasa participa en la transcripción, no en la replicación.' },
+                    { text: 'Ligasa', correct: false, explanation: 'La ligasa une fragmentos de ADN, pero no es la enzima principal.' },
+                    { text: 'Helicasa', correct: false, explanation: 'La helicasa desenrolla el ADN, pero no sintetiza nuevas hebras.' }
+                ], theme: 'Tema 3' }
             ],
             'Tema 4': [
-                { id: 1, text: '¿Todos los genes acaban produciendo una proteína?', special: false, options: [
-                    { text: 'No, algunos producen ARN no codificante', correct: true },
-                    { text: 'Sí, todos producen proteínas', correct: false },
-                    { text: 'Solo en procariotas', correct: false },
-                    { text: 'Solo en virus', correct: false }
-                ] },
-                { id: 2, text: 'Diferencias entre las ARN y las ADN polimerasas', special: false, options: [
-                    { text: 'ARN polimerasa no usa cebador; ADN polimerasa sí', correct: true },
-                    { text: 'ADN polimerasa sintetiza ARN', correct: false },
-                    { text: 'ARN polimerasa tiene actividad correctora', correct: false },
-                    { text: 'Ambas usan histonas', correct: false }
-                ] },
-                { id: 3, text: '¿Por qué las ARN polimerasas no necesitan actividad correctora de pruebas?', special: true, options: [
-                    { text: 'Porque el ARN es transitorio', correct: true },
-                    { text: 'Porque el ARN no se replica', correct: false },
-                    { text: 'Porque el ARN es más estable', correct: false },
-                    { text: 'Porque usa cebadores', correct: false }
-                ] },
-                { id: 4, text: 'Explica la relación que tienen los factores de transcripción y el promotor', special: false, options: [
-                    { text: 'Factores se unen al promotor para iniciar la transcripción', correct: true },
-                    { text: 'Factores degradan el promotor', correct: false },
-                    { text: 'Factores replican el ADN', correct: false },
-                    { text: 'Factores unen el ARN', correct: false }
-                ] },
-                { id: 5, text: '¿Funciones de las secuencias promotoras basales?', special: false, options: [
-                    { text: 'Iniciar la transcripción en sitios específicos', correct: true },
-                    { text: 'Degradar el ARN', correct: false },
-                    { text: 'Unir fragmentos de Okazaki', correct: false },
-                    { text: 'Condensar el ADN', correct: false }
-                ] },
-                { id: 6, text: '¿Funciones de las secuencias promotoras proximales?', special: false, options: [
-                    { text: 'Regular la eficiencia de la transcripción', correct: true },
-                    { text: 'Iniciar la replicación', correct: false },
-                    { text: 'Degradar el ADN', correct: false },
-                    { text: 'Unir histonas', correct: false }
-                ] },
-                { id: 7, text: '¿Qué es el modelo escalonado del inicio de la transcripción?', special: false, options: [
-                    { text: 'Secuencia ordenada de unión de factores', correct: true },
-                    { text: 'Corte del ADN en fragmentos', correct: false },
-                    { text: 'Síntesis de fragmentos de Okazaki', correct: false },
-                    { text: 'Degradación del ARN', correct: false }
-                ] },
-                { id: 8, text: 'Explica qué es la burbuja transcripcional', special: false, options: [
-                    { text: 'Región de ADN abierto durante la transcripción', correct: true },
-                    { text: 'Un tipo de mutación', correct: false },
-                    { text: 'Un fragmento de ARN', correct: false },
-                    { text: 'Una enzima de replicación', correct: false }
-                ] },
-                { id: 9, text: 'Explica lo que hace la proteína Rho', special: true, options: [
-                    { text: 'Termina la transcripción dependiente de Rho', correct: true },
-                    { text: 'Inicia la replicación', correct: false },
-                    { text: 'Une fragmentos de Okazaki', correct: false },
-                    { text: 'Degrada histonas', correct: false }
-                ] },
-                { id: 10, text: '¿En qué se basa la terminación independiente de Rho?', special: false, options: [
-                    { text: 'Estructuras en horquilla en el ARN', correct: true },
-                    { text: 'Unión de factores de transcripción', correct: false },
-                    { text: 'Corte del ADN', correct: false },
-                    { text: 'Síntesis de proteínas', correct: false }
-                ] },
+                { id: 1, text: '¿Qué molécula se sintetiza durante la transcripción?', special: false, options: [
+                    { text: 'ARN', correct: true, explanation: 'La transcripción produce ARN a partir de una plantilla de ADN.' },
+                    { text: 'ADN', correct: false, explanation: 'El ADN no se sintetiza durante la transcripción.' },
+                    { text: 'Proteínas', correct: false, explanation: 'Las proteínas se producen en la traducción, no en la transcripción.' },
+                    { text: 'Lípidos', correct: false, explanation: 'Los lípidos no están relacionados con la transcripción.' }
+                ], theme: 'Tema 4' }
             ],
             'Tema 5': [
-                { id: 1, text: '¿Por qué existen los intrones?', special: false, options: [
-                    { text: 'Permiten el empalme alternativo', correct: true },
-                    { text: 'Inician la replicación', correct: false },
-                    { text: 'Degradan el ADN', correct: false },
-                    { text: 'Unen histonas', correct: false }
-                ] },
-                { id: 2, text: '¿Por qué hay que modificar los extremos 5´ y 3´ de los ARNm?', special: false, options: [
-                    { text: 'Para estabilizar y proteger el ARNm', correct: true },
-                    { text: 'Para iniciar la replicación', correct: false },
-                    { text: 'Para unir fragmentos de Okazaki', correct: false },
-                    { text: 'Para condensar el ADN', correct: false }
-                ] },
-                { id: 3, text: '¿Qué aporta el enlace 5´-5´ al principio de los ARNm?', special: false, options: [
-                    { text: 'Protección contra degradación', correct: true },
-                    { text: 'Inicia la transcripción', correct: false },
-                    { text: 'Une el ARN al ribosoma', correct: false },
-                    { text: 'Degrada el ADN', correct: false }
-                ] },
-                { id: 4, text: '¿En qué se diferencian/parecen los intrones de tipo I y II?', special: true, options: [
-                    { text: 'Tipo I usa snRNPs, tipo II es autocatalítico', correct: true },
-                    { text: 'Ambos son idénticos', correct: false },
-                    { text: 'Tipo I se encuentra en procariotas', correct: false },
-                    { text: 'Tipo II no se elimina', correct: false }
-                ] },
-                { id: 5, text: '¿En qué se diferencian/parecen los intrones de tipo II y III?', special: false, options: [
-                    { text: 'Tipo III usa maquinaria diferente', correct: true },
-                    { text: 'Ambos son idénticos', correct: false },
-                    { text: 'Tipo II no se elimina', correct: false },
-                    { text: 'Tipo III es exclusivo de virus', correct: false }
-                ] },
-                { id: 6, text: '¿Qué provocaría una mutación que cree un nuevo centro de ayuste 3´ antes del original?', special: false, options: [
-                    { text: 'Un ARNm más corto', correct: true },
-                    { text: 'Un ARNm más largo', correct: false },
-                    { text: 'No afecta al ARNm', correct: false },
-                    { text: 'Degrada el ADN', correct: false }
-                ] },
-                { id: 7, text: '¿Cómo se coordinan los procesos de maduración postranscripcional?', special: false, options: [
-                    { text: 'A través de complejos multiproteicos', correct: true },
-                    { text: 'Por la acción de la ADN polimerasa', correct: false },
-                    { text: 'Mediante histonas', correct: false },
-                    { text: 'Por replicación del ADN', correct: false }
-                ] },
-                { id: 8, text: '¿Para qué sirve el empalme alternativo?', special: false, options: [
-                    { text: 'Generar múltiples proteínas de un solo gen', correct: true },
-                    { text: 'Iniciar la replicación', correct: false },
-                    { text: 'Degradar el ARN', correct: false },
-                    { text: 'Condensar el ADN', correct: false }
-                ] },
-                { id: 9, text: '¿Qué es la poliadenilación alternativa?', special: false, options: [
-                    { text: 'Añadir colas de poli-A en diferentes sitios', correct: true },
-                    { text: 'Eliminar intrones', correct: false },
-                    { text: 'Unir fragmentos de Okazaki', correct: false },
-                    { text: 'Sintetizar ADN', correct: false }
-                ] },
-                { id: 10, text: '¿Qué es la edición del ARNm?', special: false, options: [
-                    { text: 'Modificación de bases en el ARNm', correct: true },
-                    { text: 'Corte del ADN', correct: false },
-                    { text: 'Unión de histonas', correct: false },
-                    { text: 'Replicación del ARN', correct: false }
-                ] },
+                { id: 1, text: '¿Qué proceso elimina intrones del ARN?', special: false, options: [
+                    { text: 'Splicing', correct: true, explanation: 'El splicing elimina intrones y une exones en el ARN mensajero.' },
+                    { text: 'Replicación', correct: false, explanation: 'La replicación es para el ADN, no para el ARN.' },
+                    { text: 'Traducción', correct: false, explanation: 'La traducción produce proteínas, no procesa ARN.' },
+                    { text: 'Transcripción', correct: false, explanation: 'La transcripción sintetiza ARN, no elimina intrones.' }
+                ], theme: 'Tema 5' }
             ],
             'Tema 6': [
-                { id: 1, text: '¿Qué es y cita las reglas del código genético?', special: true, options: [
-                    { text: 'Traducción de ARNm a proteínas; universal, degenerado, no ambiguo', correct: true },
-                    { text: 'Síntesis de ADN; no degenerado', correct: false },
-                    { text: 'Replicación del ADN; ambiguo', correct: false },
-                    { text: 'Transcripción del ARN; no universal', correct: false }
-                ] },
-                { id: 2, text: '¿Por qué el código genético no es ambiguo?', special: false, options: [
-                    { text: 'Cada codón codifica un solo aminoácido', correct: true },
-                    { text: 'Cada codón codifica múltiples aminoácidos', correct: false },
-                    { text: 'Los codones no se traducen', correct: false },
-                    { text: 'El código varía entre especies', correct: false }
-                ] },
-                { id: 3, text: '¿Qué ventaja tiene el hecho de que el código genético esté degenerado?', special: false, options: [
-                    { text: 'Reduce el impacto de mutaciones', correct: true },
-                    { text: 'Aumenta la velocidad de traducción', correct: false },
-                    { text: 'Inicia la replicación', correct: false },
-                    { text: 'Degrada el ARN', correct: false }
-                ] },
-                { id: 4, text: 'Aplicación práctica de que el código genético sea casi universal', special: false, options: [
-                    { text: 'Producción de proteínas en organismos distintos', correct: true },
-                    { text: 'Síntesis de ADN nuevo', correct: false },
-                    { text: 'Degradación del ARN', correct: false },
-                    { text: 'Condensación del ADN', correct: false }
-                ] },
-                { id: 5, text: 'Explica el papel de las Aminoacil ARNt sintetasas en el código genético', special: true, options: [
-                    { text: 'Unen aminoácidos a ARNt específicos', correct: true },
-                    { text: 'Inician la transcripción', correct: false },
-                    { text: 'Degrada el ADN', correct: false },
-                    { text: 'Unen histonas', correct: false }
-                ] },
-                { id: 6, text: 'Explica la función de cada uno de los sitios en el ribosoma', special: false, options: [
-                    { text: 'Sitios A, P, E para ARNt y péptido en formación', correct: true },
-                    { text: 'Sitios para replicación del ADN', correct: false },
-                    { text: 'Sitios para unión de histonas', correct: false },
-                    { text: 'Sitios para degradación del ARN', correct: false }
-                ] },
-                { id: 7, text: '¿Qué función tiene y cómo la realiza la peptidil transferasa?', special: true, options: [
-                    { text: 'Forma enlaces peptídicos entre aminoácidos', correct: true },
-                    { text: 'Corta el ADN', correct: false },
-                    { text: 'Une fragmentos de Okazaki', correct: false },
-                    { text: 'Degrada el ARN', correct: false }
-                ] },
-                { id: 8, text: '¿Qué función tiene y cómo la realiza el factor de terminación?', special: true, options: [
-                    { text: 'Libera la proteína al reconocer codones de parada', correct: true },
-                    { text: 'Inicia la traducción', correct: false },
-                    { text: 'Une histonas', correct: false },
-                    { text: 'Degrada el ADN', correct: false }
-                ] },
-                { id: 9, text: '¿Cuándo una proteína acaba de ser sintetizada en el ribosoma es activa?', special: false, options: [
-                    { text: 'No, necesita modificaciones postraduccionales', correct: true },
-                    { text: 'Sí, siempre es activa', correct: false },
-                    { text: 'Solo en procariotas', correct: false },
-                    { text: 'Solo en virus', correct: false }
-                ] },
-                { id: 10, text: '¿Qué es la modificación postraduccional? Cita ejemplos', special: false, options: [
-                    { text: 'Cambios químicos en proteínas; fosforilación, glicosilación', correct: true },
-                    { text: 'Corte del ADN', correct: false },
-                    { text: 'Síntesis de ARN', correct: false },
-                    { text: 'Unión de histonas', correct: false }
-                ] },
+                { id: 1, text: '¿Dónde ocurre la traducción en las células eucariotas?', special: false, options: [
+                    { text: 'Citoplasma', correct: true, explanation: 'La traducción ocurre en los ribosomas en el citoplasma.' },
+                    { text: 'Núcleo', correct: false, explanation: 'El núcleo es el sitio de la transcripción, no de la traducción.' },
+                    { text: 'Mitocondria', correct: false, explanation: 'La traducción ocurre en mitocondrias para sus proteínas, pero no es el sitio principal.' },
+                    { text: 'Membrana plasmática', correct: false, explanation: 'La membrana plasmática no está involucrada en la traducción.' }
+                ], theme: 'Tema 6' }
             ],
             'Tema 7': [
-                { id: 1, text: 'Describe las rutas principales del tráfico de proteínas', special: false, options: [
-                    { text: 'Núcleo, retículo, Golgi, membrana', correct: true },
-                    { text: 'Ribosoma, ADN, ARN', correct: false },
-                    { text: 'Mitocondria, núcleo, citoplasma', correct: false },
-                    { text: 'Lisosoma, ADN, histonas', correct: false }
-                ] },
-                { id: 2, text: 'Describe el tráfico de proteínas al retículo endoplásmico', special: false, options: [
-                    { text: 'Señal de péptido guía la proteína al RE', correct: true },
-                    { text: 'Proteínas se unen al ADN', correct: false },
-                    { text: 'Proteínas se degradan', correct: false },
-                    { text: 'Proteínas se replican', correct: false }
-                ] },
-                { id: 3, text: 'Describe la acetilación', special: false, options: [
-                    { text: 'Adición de grupos acetilo a proteínas', correct: true },
-                    { text: 'Eliminación de fosfatos', correct: false },
-                    { text: 'Unión de azúcares', correct: false },
-                    { text: 'Corte del ADN', correct: false }
-                ] },
-                { id: 4, text: 'Describe la hidroxilación', special: false, options: [
-                    { text: 'Adición de grupos hidroxilo a proteínas', correct: true },
-                    { text: 'Eliminación de azúcares', correct: false },
-                    { text: 'Unión de fosfatos', correct: false },
-                    { text: 'Degradación del ARN', correct: false }
-                ] },
-                { id: 5, text: 'Describe la carboxilación', special: false, options: [
-                    { text: 'Adición de grupos carboxilo a proteínas', correct: true },
-                    { text: 'Eliminación de hidroxilos', correct: false },
-                    { text: 'Unión de lípidos', correct: false },
-                    { text: 'Corte del ADN', correct: false }
-                ] },
-                { id: 6, text: 'Describe la fosforilación', special: false, options: [
-                    { text: 'Adición de grupos fosfato a proteínas', correct: true },
-                    { text: 'Eliminación de azúcares', correct: false },
-                    { text: 'Unión de histonas', correct: false },
-                    { text: 'Degradación del ARN', correct: false }
-                ] },
-                { id: 7, text: 'Describe la metilación', special: false, options: [
-                    { text: 'Adición de grupos metilo a proteínas o ADN', correct: true },
-                    { text: 'Eliminación de fosfatos', correct: false },
-                    { text: 'Unión de azúcares', correct: false },
-                    { text: 'Corte del ARN', correct: false }
-                ] },
-                { id: 8, text: 'Describe la acilación', special: false, options: [
-                    { text: 'Adición de grupos acilo a proteínas', correct: true },
-                    { text: 'Eliminación de hidroxilos', correct: false },
-                    { text: 'Unión de fosfatos', correct: false },
-                    { text: 'Degradación del ADN', correct: false }
-                ] },
-                { id: 9, text: 'Describe la prenilación', special: true, options: [
-                    { text: 'Adición de grupos prenilo para anclar proteínas a membranas', correct: true },
-                    { text: 'Eliminación de azúcares', correct: false },
-                    { text: 'Unión de histonas', correct: false },
-                    { text: 'Corte del ARN', correct: false }
-                ] },
-                { id: 10, text: 'Describe la glucosilación', special: false, options: [
-                    { text: 'Adición de azúcares a proteínas', correct: true },
-                    { text: 'Eliminación de fosfatos', correct: false },
-                    { text: 'Unión de lípidos', correct: false },
-                    { text: 'Degradación del ADN', correct: false }
-                ] },
+                { id: 1, text: '¿Qué organelo modifica proteínas después de su síntesis?', special: false, options: [
+                    { text: 'Aparato de Golgi', correct: true, explanation: 'El aparato de Golgi modifica y empaqueta proteínas.' },
+                    { text: 'Ribosomas', correct: false, explanation: 'Los ribosomas sintetizan proteínas, no las modifican.' },
+                    { text: 'Núcleo', correct: false, explanation: 'El núcleo no está involucrado en la modificación de proteínas.' },
+                    { text: 'Lisosomas', correct: false, explanation: 'Los lisosomas degradan, no modifican proteínas.' }
+                ], theme: 'Tema 7' }
             ],
             'Tema 8': [
-                { id: 1, text: 'Explica el test de Ames', special: true, options: [
-                    { text: 'Prueba mutagénica usando bacterias', correct: true },
-                    { text: 'Prueba de replicación del ADN', correct: false },
-                    { text: 'Prueba de transcripción', correct: false },
-                    { text: 'Prueba de unión de histonas', correct: false }
-                ] },
-                { id: 2, text: 'Diferencia mutación germinal y somática', special: false, options: [
-                    { text: 'Germinal afecta gametos; somática afecta otras células', correct: true },
-                    { text: 'Somática afecta gametos; germinal otras células', correct: false },
-                    { text: 'Ambas afectan el ADN nuclear', correct: false },
-                    { text: 'Germinal no se hereda', correct: false }
-                ] },
-                { id: 3, text: 'Explica los tipos de mutaciones pequeñas o puntuales', special: false, options: [
-                    { text: 'Sustituciones, inserciones, deleciones', correct: true },
-                    { text: 'Duplicaciones cromosómicas', correct: false },
-                    { text: 'Translocaciones', correct: false },
-                    { text: 'Inversiones cromosómicas', correct: false }
-                ] },
-                { id: 4, text: 'Explica los tipos de anomalías cromosómicas', special: false, options: [
-                    { text: 'Deleciones, duplicaciones, translocaciones', correct: true },
-                    { text: 'Sustituciones de bases', correct: false },
-                    { text: 'Inserciones de nucleótidos', correct: false },
-                    { text: 'Mutaciones puntuales', correct: false }
-                ] },
-                { id: 5, text: 'Explica las mutaciones con desplazamiento del marco de lectura', special: false, options: [
-                    { text: 'Inserciones o deleciones no múltiplos de 3', correct: true },
-                    { text: 'Sustituciones de bases', correct: false },
-                    { text: 'Mutaciones silenciosas', correct: false },
-                    { text: 'Translocaciones cromosómicas', correct: false }
-                ] },
-                { id: 6, text: 'Explica las mutaciones sin desplazamiento del marco de lectura', special: false, options: [
-                    { text: 'Inserciones o deleciones múltiplos de 3', correct: true },
-                    { text: 'Sustituciones de bases', correct: false },
-                    { text: 'Mutaciones puntuales', correct: false },
-                    { text: 'Inversiones cromosómicas', correct: false }
-                ] },
-                { id: 7, text: 'Explica qué es una mutación silenciosa', special: false, options: [
-                    { text: 'No cambia el aminoácido codificado', correct: true },
-                    { text: 'Cambia la proteína', correct: false },
-                    { text: 'Detiene la traducción', correct: false },
-                    { text: 'Afecta el ADN nuclear', correct: false }
-                ] },
-                { id: 8, text: 'Explica qué son las mutaciones no silenciosas', special: false, options: [
-                    { text: 'Cambian el aminoácido o detienen la traducción', correct: true },
-                    { text: 'No afectan la proteína', correct: false },
-                    { text: 'Unen histonas', correct: false },
-                    { text: 'Degrada el ARN', correct: false }
-                ] },
-                { id: 9, text: 'Explica qué es una mutación prematura o sin sentido', special: true, options: [
-                    { text: 'Introduce un codón de parada prematuro', correct: true },
-                    { text: 'No afecta la traducción', correct: false },
-                    { text: 'Cambia un aminoácido', correct: false },
-                    { text: 'Aumenta la longitud de la proteína', correct: false }
-                ] },
-                { id: 10, text: 'Explica los tipos de mutaciones endógenas', special: true, options: [
-                    { text: 'Causadas por errores de replicación o daño celular', correct: true },
-                    { text: 'Inducidas por agentes externos', correct: false },
-                    { text: 'Producidas por virus', correct: false },
-                    { text: 'Causadas por histonas', correct: false }
-                ] },
+                { id: 1, text: '¿Qué es una mutación sin sentido?', special: false, options: [
+                    { text: 'Introduce un codón de parada prematuro', correct: true, explanation: 'Una mutación sin sentido cambia un codón a uno de parada, truncando la proteína.' },
+                    { text: 'Cambia un aminoácido por otro', correct: false, explanation: 'Eso es una mutación missense, no sin sentido.' },
+                    { text: 'No afecta la secuencia de la proteína', correct: false, explanation: 'Eso es una mutación silenciosa.' },
+                    { text: 'Inserta una base extra', correct: false, explanation: 'Eso es una mutación de inserción.' }
+                ], theme: 'Tema 8' }
             ],
             'Tema 9': [
-                { id: 1, text: '¿Qué provoca que dos células de un organismo sean tan diferentes?', special: false, options: [
-                    { text: 'Diferente expresión génica', correct: true },
-                    { text: 'Diferente ADN', correct: false },
-                    { text: 'Diferente replicación', correct: false },
-                    { text: 'Diferente transcripción', correct: false }
-                ] },
-                { id: 2, text: '¿Qué es el transcriptoma?', special: false, options: [
-                    { text: 'Conjunto de ARN transcritos', correct: true },
-                    { text: 'Conjunto de proteínas', correct: false },
-                    { text: 'Conjunto de genes', correct: false },
-                    { text: 'Conjunto de histonas', correct: false }
-                ] },
-                { id: 3, text: '¿Qué es el proteosoma?', special: false, options: [
-                    { text: 'Complejo que degrada proteínas', correct: true },
-                    { text: 'Complejo que sintetiza ARN', correct: false },
-                    { text: 'Complejo que replica ADN', correct: false },
-                    { text: 'Complejo que une histonas', correct: false }
-                ] },
-                { id: 4, text: 'Explica la estequiometría Gen:ARNm:Proteína', special: true, options: [
-                    { text: 'Un gen produce un ARNm que codifica una proteína', correct: true },
-                    { text: 'Un gen produce múltiples proteínas', correct: false },
-                    { text: 'Un ARNm produce múltiples genes', correct: false },
-                    { text: 'Una proteína produce un gen', correct: false }
-                ] },
-                { id: 5, text: '¿La regulación de la expresión génica es más compleja en eucariotas o procariotas?', special: true, options: [
-                    { text: 'Eucariotas', correct: true },
-                    { text: 'Procariotas', correct: false },
-                    { text: 'Igual en ambos', correct: false },
-                    { text: 'No se regula en procariotas', correct: false }
-                ] },
-                { id: 6, text: 'Cita y define los distintos niveles de regulación de la expresión génica', special: false, options: [
-                    { text: 'Transcripcional, postranscripcional, traduccional, postraduccional', correct: true },
-                    { text: 'Replicación, transcripción, traducción', correct: false },
-                    { text: 'Condensación, replicación, unión', correct: false },
-                    { text: 'Mutación, translocación, deleción', correct: false }
-                ] },
-                { id: 7, text: 'Describe la importancia de cada uno de los niveles de regulación de la expresión génica en procariotas', special: false, options: [
-                    { text: 'Controlan la respuesta rápida al ambiente', correct: true },
-                    { text: 'Inician la replicación', correct: false },
-                    { text: 'Degradan el ADN', correct: false },
-                    { text: 'Unen histonas', correct: false }
-                ] },
-                { id: 8, text: '¿Qué es y función de los operones?', special: true, options: [
-                    { text: 'Grupos de genes regulados juntos en procariotas', correct: true },
-                    { text: 'Genes que codifican histonas', correct: false },
-                    { text: 'Enzimas de replicación', correct: false },
-                    { text: 'Fragmentos de ARN', correct: false }
-                ] },
-                { id: 9, text: 'Explica la sustitución del factor sigma', special: false, options: [
-                    { text: 'Cambia la especificidad de la ARN polimerasa', correct: true },
-                    { text: 'Inicia la replicación', correct: false },
-                    { text: 'Degrada el ARN', correct: false },
-                    { text: 'Une fragmentos de Okazaki', correct: false }
-                ] },
-                { id: 10, text: 'Explica la regulación epigenética', special: false, options: [
-                    { text: 'Modificaciones heredables sin cambiar el ADN', correct: true },
-                    { text: 'Mutaciones en el ADN', correct: false },
-                    { text: 'Síntesis de ARN', correct: false },
-                    { text: 'Unión de histonas', correct: false }
-                ] },
+                { id: 1, text: '¿Qué es un operador en un operón?', special: false, options: [
+                    { text: 'Sitio de unión para represores', correct: true, explanation: 'El operador es donde se une un represor para regular la transcripción.' },
+                    { text: 'Sitio de síntesis de ARN', correct: false, explanation: 'El sitio de síntesis es el gen, no el operador.' },
+                    { text: 'Enzima reguladora', correct: false, explanation: 'El operador no es una enzima.' },
+                    { text: 'Región codificante', correct: false, explanation: 'El operador no codifica proteínas.' }
+                ], theme: 'Tema 9' }
             ],
             'Tema 10': [
-                { id: 1, text: '¿Qué produce la PCR?', special: false, options: [
-                    { text: 'Amplificación de ADN', correct: true },
-                    { text: 'Síntesis de ARN', correct: false },
-                    { text: 'Degradación de proteínas', correct: false },
-                    { text: 'Unión de histonas', correct: false }
-                ] },
-                { id: 2, text: 'Utilidades de la PCR', special: false, options: [
-                    { text: 'Diagnóstico, clonación, análisis forense', correct: true },
-                    { text: 'Síntesis de proteínas', correct: false },
-                    { text: 'Degradación del ARN', correct: false },
-                    { text: 'Condensación del ADN', correct: false }
-                ] },
-                { id: 3, text: '¿Qué es la clonación celular?', special: false, options: [
-                    { text: 'Producción de células idénticas', correct: true },
-                    { text: 'Síntesis de ARN', correct: false },
-                    { text: 'Degradación del ADN', correct: false },
-                    { text: 'Unión de histonas', correct: false }
-                ] },
-                { id: 4, text: '¿Qué son las restrictasas?', special: true, options: [
-                    { text: 'Enzimas que cortan ADN en sitios específicos', correct: true },
-                    { text: 'Enzimas que sintetizan ADN', correct: false },
-                    { text: 'Enzimas que unen ARN', correct: false },
-                    { text: 'Enzimas que degradan proteínas', correct: false }
-                ] },
-                { id: 5, text: '¿Qué es la Taq?', special: false, options: [
-                    { text: 'Polimerasa termoestable usada en PCR', correct: true },
-                    { text: 'Una enzima de restricción', correct: false },
-                    { text: 'Un vector de clonación', correct: false },
-                    { text: 'Una histona', correct: false }
-                ] },
-                { id: 6, text: '¿Cómo en la PCR las cadenas de ADN se separan?', special: false, options: [
-                    { text: 'Por calentamiento (desnaturalización)', correct: true },
-                    { text: 'Por acción de enzimas', correct: false },
-                    { text: 'Por unión de histonas', correct: false },
-                    { text: 'Por síntesis de ARN', correct: false }
-                ] },
-                { id: 7, text: '¿Qué es un termociclador?', special: false, options: [
-                    { text: 'Máquina que controla ciclos térmicos en PCR', correct: true },
-                    { text: 'Enzima de replicación', correct: false },
-                    { text: 'Vector de clonación', correct: false },
-                    { text: 'Método de transcripción', correct: false }
-                ] },
-                { id: 8, text: 'Eligiendo la secuencia de los cebadores, ¿qué se puede lograr?', special: false, options: [
-                    { text: 'Amplificar regiones específicas de ADN', correct: true },
-                    { text: 'Degradar el ADN', correct: false },
-                    { text: 'Sintetizar proteínas', correct: false },
-                    { text: 'Unir histonas', correct: false }
-                ] },
-                { id: 9, text: '¿En la PCR, qué es la etapa de desnaturalización?', special: false, options: [
-                    { text: 'Separación de las hebras de ADN por calor', correct: true },
-                    { text: 'Unión de cebadores', correct: false },
-                    { text: 'Síntesis de ADN nuevo', correct: false },
-                    { text: 'Degradación del ARN', correct: false }
-                ] },
-                { id: 10, text: 'Explica la técnica Southern', special: true, options: [
-                    { text: 'Detección de secuencias específicas de ADN', correct: true },
-                    { text: 'Detección de ARN', correct: false },
-                    { text: 'Detección de proteínas', correct: false },
-                    { text: 'Síntesis de ADN', correct: false }
-                ] },
+                { id: 1, text: '¿Qué técnica amplifica ADN en el laboratorio?', special: false, options: [
+                    { text: 'PCR', correct: true, explanation: 'La reacción en cadena de la polimerasa (PCR) amplifica ADN.' },
+                    { text: 'Electroforesis', correct: false, explanation: 'La electroforesis separa ADN, no lo amplifica.' },
+                    { text: 'Clonación', correct: false, explanation: 'La clonación introduce ADN en vectores, no lo amplifica directamente.' },
+                    { text: 'Secuenciación', correct: false, explanation: 'La secuenciación lee ADN, no lo amplifica.' }
+                ], theme: 'Tema 10' }
             ],
             'Tema 11': [
-                { id: 1, text: 'Cita los objetivos de la clonación', special: false, options: [
-                    { text: 'Amplificar ADN, estudiar genes, producir proteínas', correct: true },
-                    { text: 'Degradar ADN', correct: false },
-                    { text: 'Sintetizar ARN', correct: false },
-                    { text: 'Unir histonas', correct: false }
-                ] },
-                { id: 2, text: 'Cita las herramientas más usadas en ingeniería genética', special: false, options: [
-                    { text: 'Restrictasas, ligasas, vectores', correct: true },
-                    { text: 'Ribosomas, histonas', correct: false },
-                    { text: 'ARN polimerasas, cebadores', correct: false },
-                    { text: 'Proteínas de unión', correct: false }
-                ] },
-                { id: 3, text: 'Características de las enzimas de restricción', special: true, options: [
-                    { text: 'Corte específico en secuencias palindrómicas', correct: true },
-                    { text: 'Síntesis de ADN', correct: false },
-                    { text: 'Unión de ARN', correct: false },
-                    { text: 'Degradación de proteínas', correct: false }
-                ] },
-                { id: 4, text: 'Características de las ADN ligasas', special: false, options: [
-                    { text: 'Unen fragmentos de ADN', correct: true },
-                    { text: 'Corte de ADN', correct: false },
-                    { text: 'Síntesis de ARN', correct: false },
-                    { text: 'Unión de histonas', correct: false }
-                ] },
-                { id: 5, text: 'Uso de la fosfatasa alcalina', special: true, options: [
-                    { text: 'Evita la autoligación de vectores', correct: true },
-                    { text: 'Inicia la replicación', correct: false },
-                    { text: 'Degrada el ARN', correct: false },
-                    { text: 'Sintetiza proteínas', correct: false }
-                ] },
-                { id: 6, text: 'Utilidad práctica de la transcriptasa inversa', special: false, options: [
-                    { text: 'Sintetizar ADN a partir de ARN', correct: true },
-                    { text: 'Degradar ADN', correct: false },
-                    { text: 'Unir histonas', correct: false },
-                    { text: 'Sintetiza proteínas', correct: false }
-                ] },
-                { id: 7, text: 'Características generales de los vectores de clonación', special: false, options: [
-                    { text: 'Origen de replicación, marcador seleccionable', correct: true },
-                    { text: 'Enzimas de corte', correct: false },
-                    { text: 'Ribosomas', correct: false },
-                    { text: 'Histonas', correct: false }
-                ] },
-                { id: 8, text: 'Etapas de la clonación celular de ADN', special: false, options: [
-                    { text: 'Corte, ligación, transformación, selección', correct: true },
-                    { text: 'Replicación, transcripción, traducción', correct: false },
-                    { text: 'Mutación, deleción, inserción', correct: false },
-                    { text: 'Condensación, unión, degradación', correct: false }
-                ] },
-                { id: 9, text: 'Principio del ensayo de hibridación', special: false, options: [
-                    { text: 'Unión específica de sondas a ADN/ARN', correct: true },
-                    { text: 'Síntesis de proteínas', correct: false },
-                    { text: 'Degradación del ADN', correct: false },
-                    { text: 'Unión de histonas', correct: false }
-                ] },
-                { id: 10, text: 'Explica la técnica Northern', special: false, options: [
-                    { text: 'Detección de secuencias específicas de ARN', correct: true },
-                    { text: 'Detección de ADN', correct: false },
-                    { text: 'Detección de proteínas', correct: false },
-                    { text: 'Síntesis de ARN', correct: false }
-                ] },
+                { id: 1, text: '¿Qué es la clonación molecular?', special: false, options: [
+                    { text: 'Inserción de ADN en un vector', correct: true, explanation: 'La clonación molecular implica insertar ADN en un vector para su replicación.' },
+                    { text: 'Amplificación de ADN', correct: false, explanation: 'La amplificación es tarea de la PCR, no de la clonación.' },
+                    { text: 'Secuenciación de ADN', correct: false, explanation: 'La secuenciación no es clonación.' },
+                    { text: 'Edición de genes', correct: false, explanation: 'La edición de genes es una técnica distinta, como CRISPR.' }
+                ], theme: 'Tema 11' }
             ],
             'Tema 12': [
-                { id: 1, text: 'Características de los vectores de expresión', special: false, options: [
-                    { text: 'Contienen promotores para expresión génica', correct: true },
-                    { text: 'Solo cortan ADN', correct: false },
-                    { text: 'Degradan ARN', correct: false },
-                    { text: 'Unen histonas', correct: false }
-                ] },
-                { id: 2, text: 'Cita los problemas de expresión de proteínas eucariotas en sistemas procariotas', special: false, options: [
-                    { text: 'Falta de modificaciones postraduccionales', correct: true },
-                    { text: 'Ausencia de ADN', correct: false },
-                    { text: 'Falta de ribosomas', correct: false },
-                    { text: 'Exceso de histonas', correct: false }
-                ] },
-                { id: 3, text: 'Tipos de vectores de expresión en eucariotas', special: false, options: [
-                    { text: 'Plásmidos, virales, cosmidos', correct: true },
-                    { text: 'Enzimas de restricción', correct: false },
-                    { text: 'Ribosomas', correct: false },
-                    { text: 'Histonas', correct: false }
-                ] },
-                { id: 4, text: 'Cita los objetivos generales de las transformaciones', special: false, options: [
-                    { text: 'Introducir ADN foráneo en células', correct: true },
-                    { text: 'Degradar ADN', correct: false },
-                    { text: 'Sintetizar ARN', correct: false },
-                    { text: 'Unir histonas', correct: false }
-                ] },
-                { id: 5, text: 'La transformación por perlas de vidrio', special: false, options: [
-                    { text: 'Introduce ADN por fricción mecánica', correct: true },
-                    { text: 'Degrada el ADN', correct: false },
-                    { text: 'Sintetiza proteínas', correct: false },
-                    { text: 'Une histonas', correct: false }
-                ] },
-                { id: 6, text: 'La electroporación', special: false, options: [
-                    { text: 'Introduce ADN por pulsos eléctricos', correct: true },
-                    { text: 'Corta ADN', correct: false },
-                    { text: 'Sintetiza ARN', correct: false },
-                    { text: 'Degrada proteínas', correct: false }
-                ] },
-                { id: 7, text: '¿Qué son y qué utilidad tienen los protoplastos?', special: false, options: [
-                    { text: 'Células sin pared para transformación', correct: true },
-                    { text: 'Enzimas de replicación', correct: false },
-                    { text: 'Fragmentos de ARN', correct: false },
-                    { text: 'Histonas', correct: false }
-                ] },
-                { id: 8, text: 'La biobalística', special: false, options: [
-                    { text: 'Introduce ADN mediante partículas', correct: true },
-                    { text: 'Degrada ADN', correct: false },
-                    { text: 'Sintetiza proteínas', correct: false },
-                    { text: 'Une histonas', correct: false }
-                ] },
-                { id: 9, text: 'La utilización de Agrobacterium tumefaciens', special: false, options: [
-                    { text: 'Transferencia de ADN a plantas', correct: true },
-                    { text: 'Síntesis de ARN', correct: false },
-                    { text: 'Degradación de ADN', correct: false },
-                    { text: 'Unión de histonas', correct: false }
-                ] },
-                { id: 10, text: 'La utilización de los vectores derivados de retrovirus', special: false, options: [
-                    { text: 'Transferencia de genes a células animales', correct: true },
-                    { text: 'Corte de ADN', correct: false },
-                    { text: 'Síntesis de proteínas', correct: false },
-                    { text: 'Degradación de ARN', correct: false }
-                ] },
+                { id: 1, text: '¿Qué es un vector en biología molecular?', special: false, options: [
+                    { text: 'Molécula que transporta ADN foráneo', correct: true, explanation: 'Un vector, como un plásmido, lleva ADN foráneo a una célula.' },
+                    { text: 'Enzima de corte', correct: false, explanation: 'Las enzimas de corte son endonucleasas, no vectores.' },
+                    { text: 'Célula huésped', correct: false, explanation: 'La célula huésped recibe el vector, no es el vector.' },
+                    { text: 'ADN genómico', correct: false, explanation: 'El ADN genómico no es un vector.' }
+                ], theme: 'Tema 12' }
             ],
             'simulacro': []
         };
@@ -1039,36 +406,8 @@
             document.getElementById(sectionId).style.display = 'block';
             document.querySelectorAll('nav a').forEach(link => {
                 link.classList.remove('active');
-                if (link.getAttribute('onclick').includes(sectionId)) {
-                    link.classList.add('active');
-                }
             });
-        }
-
-        function startQuiz(theme) {
-            currentTheme = theme;
-            currentQuestions = questions[theme] ? questions[theme].slice() : [];
-            if (theme === 'simulacro') {
-                currentQuestions = [];
-                Object.keys(questions).forEach(t => {
-                    if (t !== 'simulacro' && questions[t].length > 0) {
-                        currentQuestions.push(...questions[t]);
-                    }
-                });
-                currentQuestions = shuffleArray(currentQuestions).slice(0, questionsPerTheme);
-            } else {
-                currentQuestions = shuffleArray(currentQuestions).slice(0, questionsPerTheme);
-            }
-            if (currentQuestions.length === 0) {
-                alert('Error: No hay preguntas disponibles para este tema.');
-                return;
-            }
-            currentQuestionIndex = 0;
-            score = 0;
-            totalQuestionsAnswered = 0;
-            showSection('test');
-            document.getElementById('test-title').innerText = `Cuestionario: ${theme}`;
-            showQuestion();
+            document.querySelector(`nav a[href="#"][onclick="showSection('${sectionId}')"]`).classList.add('active');
         }
 
         function shuffleArray(array) {
@@ -1079,37 +418,78 @@
             return array;
         }
 
-        function showQuestion() {
+        function startQuiz(theme) {
+            currentTheme = theme;
+            currentQuestionIndex = 0;
+            score = 0;
+            totalQuestionsAnswered = 0;
+            selectedOption = null;
+            currentQuestions = [];
+
+            if (theme === 'simulacro') {
+                const allQuestions = [];
+                Object.keys(questions).forEach(key => {
+                    if (key !== 'simulacro' && Array.isArray(questions[key])) {
+                        questions[key].forEach(question => {
+                            if (question.text && question.id && question.options) {
+                                allQuestions.push({ ...question, theme: key });
+                            }
+                        });
+                    }
+                });
+                currentQuestions = shuffleArray([...allQuestions]).slice(0, questionsPerSimulacro);
+            } else if (Array.isArray(questions[theme])) {
+                currentQuestions = shuffleArray([...questions[theme]].filter(q => q.text && q.id && q.options));
+            } else {
+                alert('Tema no válido o sin preguntas disponibles.');
+                showSection('quiz');
+                return;
+            }
+
+            if (currentQuestions.length === 0) {
+                alert('No hay preguntas disponibles para este tema o simulacro.');
+                showSection('quiz');
+                return;
+            }
+
+            showSection('test');
+            document.getElementById('test-title').textContent = theme === 'simulacro' ? 'Simulacro de Examen' : `Cuestionario: ${theme}`;
+            loadQuestion();
+        }
+
+        function loadQuestion() {
             if (currentQuestionIndex >= currentQuestions.length) {
                 endQuiz();
                 return;
             }
+
             const question = currentQuestions[currentQuestionIndex];
             const questionContainer = document.getElementById('question-container');
             const optionsContainer = document.getElementById('options-container');
             const resultContainer = document.getElementById('result-container');
             const adviceContainer = document.getElementById('advice-container');
 
-            questionContainer.innerHTML = `<p${question.special ? ' class="special-question"' : ''}>${question.text}</p>`;
+            questionContainer.innerHTML = `<p ${question.special ? 'class="special-question"' : ''}>${question.text || 'Pregunta no disponible'}</p>`;
             optionsContainer.innerHTML = '';
             resultContainer.innerHTML = '';
             adviceContainer.innerHTML = '';
             selectedOption = null;
 
-            question.options.forEach((option, index) => {
-                const optionDiv = document.createElement('div');
-                optionDiv.className = 'option';
-                optionDiv.innerText = option.text;
-                optionDiv.onclick = () => selectOption(index);
-                optionsContainer.appendChild(optionDiv);
+            shuffledOptions = shuffleArray([...question.options]);
+            shuffledOptions.forEach((option, index) => {
+                const optionElement = document.createElement('div');
+                optionElement.classList.add('option');
+                optionElement.textContent = option.text || 'Opción no disponible';
+                optionElement.onclick = () => selectOption(index);
+                optionsContainer.appendChild(optionElement);
             });
         }
 
         function selectOption(index) {
+            const options = document.querySelectorAll('.option');
+            options.forEach(option => option.classList.remove('selected'));
+            options[index].classList.add('selected');
             selectedOption = index;
-            document.querySelectorAll('.option').forEach((option, i) => {
-                option.classList.toggle('selected', i === index);
-            });
         }
 
         function checkAnswer() {
@@ -1117,115 +497,109 @@
                 alert('Por favor, selecciona una opción.');
                 return;
             }
+
             const question = currentQuestions[currentQuestionIndex];
-            const isCorrect = question.options[selectedOption].correct;
+            const selectedOptionData = shuffledOptions[selectedOption];
+            const options = document.querySelectorAll('.option');
             const resultContainer = document.getElementById('result-container');
             const adviceContainer = document.getElementById('advice-container');
 
+            const isCorrect = selectedOptionData.correct;
+            options.forEach((option, index) => {
+                const optionData = shuffledOptions[index];
+                if (optionData.correct) {
+                    option.classList.add('correct');
+                } else if (index === selectedOption) {
+                    option.classList.add('incorrect');
+                }
+            });
+
+            resultContainer.textContent = isCorrect ? '¡Correcto!' : 'Incorrecto.';
+            adviceContainer.textContent = selectedOptionData.explanation || 'No hay explicación disponible.';
+
             if (isCorrect) {
                 score++;
-                resultContainer.innerHTML = '¡Correcto!';
-            } else {
-                resultContainer.innerHTML = 'Incorrecto. La respuesta correcta es: ' + question.options.find(opt => opt.correct).text;
             }
-            totalQuestionsAnswered++;
 
-            const questionKey = `${currentTheme} - Pregunta ${question.id}`;
-            if (!questionPerformance[questionKey]) {
-                questionPerformance[questionKey] = { correct: 0, incorrect: 0 };
+            const questionId = `${question.theme || currentTheme}-${question.id}`;
+            if (!questionPerformance[questionId]) {
+                questionPerformance[questionId] = { 
+                    correct: 0, 
+                    incorrect: 0, 
+                    text: question.text || 'Pregunta no disponible',
+                    theme: question.theme || currentTheme 
+                };
             }
-            questionPerformance[questionKey][isCorrect ? 'correct' : 'incorrect']++;
+            questionPerformance[questionId][isCorrect ? 'correct' : 'incorrect']++;
             localStorage.setItem('questionPerformance', JSON.stringify(questionPerformance));
 
-            showAdvice();
-        }
-
-        function showAdvice() {
-            const adviceContainer = document.getElementById('advice-container');
-            const question = currentQuestions[currentQuestionIndex];
-            const questionKey = `${currentTheme} - Pregunta ${question.id}`;
-            const perf = questionPerformance[questionKey] || { correct: 0, incorrect: 0 };
-            const total = perf.correct + perf.incorrect;
-            const percentage = total > 0 ? ((perf.correct / total) * 100).toFixed(2) : 0;
-
-            if (percentage < 50 && total >= 3) {
-                adviceContainer.innerHTML = `Consejo: Parece que esta pregunta te está costando (acierto: ${percentage}%). Revisa el tema "${currentTheme}" para reforzar este concepto.`;
-            } else if (question.special) {
-                adviceContainer.innerHTML = '¡Pregunta clave! Asegúrate de dominar este concepto, ya que es fundamental.';
-            } else {
-                adviceContainer.innerHTML = 'Sigue practicando para consolidar tus conocimientos.';
-            }
+            totalQuestionsAnswered++;
         }
 
         function nextQuestion() {
-            if (selectedOption === null) {
-                alert('Por favor, responde la pregunta antes de continuar.');
-                return;
+            if (currentQuestionIndex < currentQuestions.length) {
+                currentQuestionIndex++;
+                loadQuestion();
+            } else {
+                endQuiz();
             }
-            currentQuestionIndex++;
-            showQuestion();
         }
 
         function endQuiz() {
-            const percentage = (score / totalQuestionsAnswered) * 100;
+            const percentage = (score / totalQuestionsAnswered) * 100 || 0;
+            const resultContainer = document.getElementById('result-container');
+            resultContainer.innerHTML = `Cuestionario finalizado. Aciertos: ${score} de ${totalQuestionsAnswered} (${percentage.toFixed(2)}%)`;
+
             gameHistory.push({
                 date: new Date().toLocaleString(),
                 theme: currentTheme,
-                score: score,
+                score,
                 total: totalQuestionsAnswered,
                 percentage: percentage.toFixed(2)
             });
             localStorage.setItem('gameHistory', JSON.stringify(gameHistory));
-            updateHistory();
-            updateQuestionPerformance();
-            showSection('quiz');
-            alert(`Cuestionario finalizado. Puntuación: ${score}/${totalQuestionsAnswered} (${percentage.toFixed(2)}%)`);
+
+            updateHistoryTable();
+            updatePerformanceTable();
+            showSection('history');
+        }
+
+        function updateHistoryTable() {
+            const historyTable = document.getElementById('game-history');
+            historyTable.innerHTML = '<tr><th>Fecha</th><th>Tema</th><th>Aciertos</th><th>Total</th><th>% Correcto</th></tr>';
+            gameHistory.forEach(game => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${game.date}</td><td>${game.theme}</td><td>${game.score}</td><td>${game.total}</td><td>${game.percentage}%</td>`;
+                historyTable.appendChild(row);
+            });
+        }
+
+        function updatePerformanceTable() {
+            const performanceTable = document.getElementById('question-performance');
+            performanceTable.innerHTML = '<tr><th>Pregunta</th><th>Tema</th><th>Aciertos</th><th>Fallos</th><th>% Correcto</th></tr>';
+            Object.keys(questionPerformance).forEach(questionId => {
+                const data = questionPerformance[questionId];
+                const total = data.correct + data.incorrect;
+                const percentage = total > 0 ? (data.correct / total * 100).toFixed(2) : 0;
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${data.text || 'Pregunta no disponible'}</td><td>${data.theme || 'Desconocido'}</td><td>${data.correct}</td><td>${data.incorrect}</td><td>${percentage}%</td>`;
+                performanceTable.appendChild(row);
+            });
         }
 
         function resetHistory() {
             gameHistory = [];
             questionPerformance = {};
-            localStorage.setItem('gameHistory', JSON.stringify(gameHistory));
-            localStorage.setItem('questionPerformance', JSON.stringify(questionPerformance));
-            updateHistory();
-            updateQuestionPerformance();
+            localStorage.removeItem('gameHistory');
+            localStorage.removeItem('questionPerformance');
+            updateHistoryTable();
+            updatePerformanceTable();
         }
 
-        function updateHistory() {
-            const historyTable = document.getElementById('game-history');
-            while (historyTable.rows.length > 1) {
-                historyTable.deleteRow(1);
-            }
-            gameHistory.forEach(game => {
-                const row = historyTable.insertRow();
-                row.insertCell().innerText = game.date;
-                row.insertCell().innerText = game.theme;
-                row.insertCell().innerText = game.score;
-                row.insertCell().innerText = game.total;
-                row.insertCell().innerText = game.percentage + '%';
-            });
-        }
-
-        function updateQuestionPerformance() {
-            const performanceTable = document.getElementById('question-performance');
-            while (performanceTable.rows.length > 1) {
-                performanceTable.deleteRow(1);
-            }
-            Object.keys(questionPerformance).forEach(key => {
-                const { correct, incorrect } = questionPerformance[key];
-                const total = correct + incorrect;
-                const percentage = total > 0 ? ((correct / total) * 100).toFixed(2) : 0;
-                const row = performanceTable.insertRow();
-                row.insertCell().innerText = key;
-                row.insertCell().innerText = correct;
-                row.insertCell().innerText = incorrect;
-                row.insertCell().innerText = percentage + '%';
-            });
-        }
-
-        showSection('home');
-        updateHistory();
-        updateQuestionPerformance();
+        document.addEventListener('DOMContentLoaded', () => {
+            updateHistoryTable();
+            updatePerformanceTable();
+        });
     </script>
 </body>
 </html>
